@@ -182,6 +182,31 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Public vendor info route for upload portal (no auth required)
+  app.get('/api/vendors/:id/public', async (req, res) => {
+    try {
+      const { id } = req.params;
+      const vendor = await storage.getVendor(id);
+      
+      if (!vendor) {
+        return res.status(404).json({ message: 'Vendor not found' });
+      }
+
+      // Return only public info needed for upload portal
+      res.json({
+        id: vendor.id,
+        name: vendor.name,
+        email: vendor.email,
+        companyName: vendor.name, // Use vendor name as company name for now
+        w9Status: vendor.w9Status,
+        coiStatus: vendor.coiStatus,
+      });
+    } catch (error) {
+      console.error("Error fetching vendor for upload:", error);
+      res.status(500).json({ message: "Failed to fetch vendor" });
+    }
+  });
+
   app.get('/api/vendors/:id', isAuthenticated, async (req: any, res) => {
     try {
       const { id } = req.params;

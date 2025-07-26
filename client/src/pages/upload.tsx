@@ -28,9 +28,16 @@ export default function UploadPage() {
 
   const vendorId = params?.vendorId;
 
-  // Fetch vendor information
+  // Fetch vendor information (public endpoint, no auth required)
   const { data: vendor, isLoading: vendorLoading } = useQuery<Vendor>({
-    queryKey: ['/api/vendors', vendorId],
+    queryKey: ['/api/vendors', vendorId, 'public'],
+    queryFn: async () => {
+      const response = await fetch(`/api/vendors/${vendorId}/public`);
+      if (!response.ok) {
+        throw new Error('Vendor not found');
+      }
+      return response.json();
+    },
     enabled: !!vendorId,
   });
 
