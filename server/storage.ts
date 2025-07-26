@@ -45,6 +45,7 @@ export interface IStorage {
 
   // Document operations
   getDocumentsByVendorId(vendorId: string): Promise<Document[]>;
+  getDocumentByStorageKey(storageKey: string): Promise<Document | undefined>;
   createDocument(document: InsertDocument): Promise<Document>;
   updateDocument(id: string, updates: Partial<InsertDocument>): Promise<Document>;
 
@@ -179,6 +180,14 @@ export class DatabaseStorage implements IStorage {
       .where(eq(documents.vendorId, vendorId))
       .orderBy(desc(documents.uploadedAt));
     return docs;
+  }
+
+  async getDocumentByStorageKey(storageKey: string): Promise<Document | undefined> {
+    const [document] = await db
+      .select()
+      .from(documents)
+      .where(eq(documents.storageKey, storageKey));
+    return document;
   }
 
   async createDocument(documentData: InsertDocument): Promise<Document> {

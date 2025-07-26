@@ -9,6 +9,7 @@ import { smsService } from "./services/twilio";
 import { stripeService } from "./services/stripe";
 import { sseService, eventBus } from "./services/sse";
 import { cronService } from "./services/cron";
+import { documentStorageService } from "./services/documentStorage";
 import multer from 'multer';
 import { z } from 'zod';
 
@@ -280,10 +281,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(404).json({ message: 'Vendor not found' });
       }
 
-      // Here you would upload to Replit Object Storage
-      // For now, we'll simulate it
-      const storageKey = `${vendor.accountId}/${vendorId}/${Date.now()}-${file.originalname}`;
-      const publicUrl = `https://storage.replit.com/${storageKey}`;
+      // Upload to Replit Object Storage
+      const storageKey = documentStorageService.generateStorageKey(
+        vendor.accountId,
+        vendorId,
+        type,
+        file.originalname
+      );
+      
+      await documentStorageService.uploadDocument(file.buffer, storageKey, file.mimetype);
+      const publicUrl = documentStorageService.getDocumentUrl(storageKey);
 
       // Create document record
       const document = await storage.createDocument({
@@ -331,6 +338,35 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error("Error uploading document:", error);
       res.status(500).json({ message: "Failed to upload document" });
+    }
+  });
+
+  // Document download route
+  app.get('/api/documents/download/:storageKey', async (req, res) => {
+    try {
+      const { storageKey } = req.params;
+      const decodedStorageKey = decodeURIComponent(storageKey);
+
+      // Get document info from database
+      const document = await storage.getDocumentByStorageKey(decodedStorageKey);
+      if (!document) {
+        return res.status(404).json({ message: 'Document not found' });
+      }
+
+      // Download document from storage
+      const fileBuffer = await documentStorageService.downloadDocument(decodedStorageKey);
+
+      // Set appropriate headers
+      res.set({
+        'Content-Type': document.mimeType,
+        'Content-Disposition': `attachment; filename="${document.filename}"`,
+        'Content-Length': fileBuffer.length.toString(),
+      });
+
+      res.send(fileBuffer);
+    } catch (error) {
+      console.error("Error downloading document:", error);
+      res.status(500).json({ message: "Failed to download document" });
     }
   });
 

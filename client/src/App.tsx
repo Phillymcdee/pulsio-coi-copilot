@@ -12,16 +12,19 @@ import Onboarding from "@/pages/onboarding";
 import VendorDetail from "@/pages/vendor-detail";
 import Settings from "@/pages/settings";
 import Subscribe from "@/pages/subscribe";
+import Upload from "@/pages/upload";
 
 function Router() {
   const { isAuthenticated, isLoading } = useAuth();
 
   return (
     <Switch>
+      {/* Public routes - accessible without authentication */}
+      <Route path="/upload/:vendorId" component={Upload} />
+      
       {isLoading || !isAuthenticated ? (
         <>
           <Route path="/" component={Landing} />
-          <Route path="/upload/:vendorId" component={Landing} />
         </>
       ) : (
         <>
