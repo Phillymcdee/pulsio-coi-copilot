@@ -1,4 +1,4 @@
-import cron from 'node-cron';
+import * as cron from 'node-cron';
 import { storage } from '../storage';
 import { quickbooksService } from './quickbooks';
 import { emailService } from './sendgrid';
@@ -15,51 +15,55 @@ export class CronService {
     const syncJob = cron.schedule('*/20 * * * *', async () => {
       console.log('Running QuickBooks sync...');
       await this.syncAllAccounts();
-    }, {
-      scheduled: false,
     });
 
     // Daily reminder job - runs at 9 AM every day
     const reminderJob = cron.schedule('0 9 * * *', async () => {
       console.log('Running daily reminder job...');
       await this.sendScheduledReminders();
-    }, {
-      scheduled: false,
     });
 
     // COI expiry check - daily at 8 AM
     const expiryJob = cron.schedule('0 8 * * *', async () => {
       console.log('Checking for expiring COIs...');
       await this.checkExpiringCOIs();
-    }, {
-      scheduled: false,
     });
 
     this.jobs.set('sync', syncJob);
     this.jobs.set('reminders', reminderJob);
     this.jobs.set('expiry', expiryJob);
 
-    // Start all jobs
-    syncJob.start();
-    reminderJob.start();
-    expiryJob.start();
+    // Jobs are started by default, no need to call start()
 
     console.log('Cron services started successfully');
   }
 
   stop(): void {
     console.log('Stopping cron services...');
-    for (const [name, job] of this.jobs) {
+    this.jobs.forEach((job, name) => {
       job.destroy();
       console.log(`Stopped ${name} job`);
-    }
+    });
     this.jobs.clear();
   }
 
   private async syncAllAccounts(): Promise<void> {
     try {
-      // This would need to be implemented to get all accounts
-      // For now, we'll skip the implementation since we don't have a method to get all accounts
+      // Get all accounts that have QuickBooks connected
+      const accounts = await storage.getAllAccounts();
+      
+      for (const account of accounts) {
+        if (account.qboAccessToken && account.qboCompanyId) {
+          try {
+            await quickbooksService.syncVendors(account.userId);
+            await quickbooksService.syncBills(account.userId);
+            console.log(`Synced account ${account.companyName}`);
+          } catch (error) {
+            console.error(`Error syncing account ${account.companyName}:`, error);
+          }
+        }
+      }
+      
       console.log('QuickBooks sync completed');
     } catch (error) {
       console.error('Error in QuickBooks sync:', error);
@@ -68,8 +72,20 @@ export class CronService {
 
   private async sendScheduledReminders(): Promise<void> {
     try {
-      // This would get all accounts and check their reminder settings
-      // For now, we'll implement a basic version
+      // Get all accounts that have completed onboarding
+      const accounts = await storage.getAllAccounts();
+      
+      for (const account of accounts) {
+        if (account.isOnboardingComplete) {
+          try {
+            await this.sendRemindersForAccount(account.id);
+            console.log(`Sent reminders for account ${account.companyName}`);
+          } catch (error) {
+            console.error(`Error sending reminders for account ${account.companyName}:`, error);
+          }
+        }
+      }
+      
       console.log('Daily reminder job completed');
     } catch (error) {
       console.error('Error in reminder job:', error);
@@ -78,7 +94,48 @@ export class CronService {
 
   private async checkExpiringCOIs(): Promise<void> {
     try {
-      // Check all accounts for expiring COIs
+      // Get all accounts and check for expiring COIs
+      const accounts = await storage.getAllAccounts();
+      
+      for (const account of accounts) {
+        try {
+          const vendors = await storage.getVendorsByAccountId(account.id);
+          
+          for (const vendor of vendors) {
+            if (vendor.coiExpiry) {
+              const daysUntilExpiry = Math.ceil((vendor.coiExpiry.getTime() - Date.now()) / (1000 * 60 * 60 * 24));
+              
+              // Send warnings for COIs expiring in 30, 14, or 7 days
+              if ([30, 14, 7].includes(daysUntilExpiry)) {
+                await emailService.sendCOIExpiryWarning(vendor.id, daysUntilExpiry);
+                
+                if (vendor.phone) {
+                  await smsService.sendCOIExpiryWarningSMS(vendor.id, daysUntilExpiry);
+                }
+                
+                eventBus.emit('coi.expiring', {
+                  accountId: account.id,
+                  vendorName: vendor.name,
+                  daysUntilExpiry,
+                });
+              }
+              
+              // Mark as expired if past expiry date
+              if (daysUntilExpiry < 0 && vendor.coiStatus !== 'EXPIRED') {
+                await storage.updateVendor(vendor.id, { coiStatus: 'EXPIRED' });
+                
+                eventBus.emit('coi.expired', {
+                  accountId: account.id,
+                  vendorName: vendor.name,
+                });
+              }
+            }
+          }
+        } catch (error) {
+          console.error(`Error checking COIs for account ${account.companyName}:`, error);
+        }
+      }
+      
       console.log('COI expiry check completed');
     } catch (error) {
       console.error('Error in COI expiry check:', error);

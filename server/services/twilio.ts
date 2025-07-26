@@ -143,6 +143,36 @@ export class SMSService {
 
     return success;
   }
+
+  async sendCOIExpiryWarningSMS(vendorId: string, daysUntilExpiry: number): Promise<boolean> {
+    const vendor = await storage.getVendor(vendorId);
+    if (!vendor?.phone) {
+      throw new Error('Vendor phone not found');
+    }
+
+    const account = await storage.getAccountByUserId(vendor.accountId);
+    if (!account) {
+      throw new Error('Account not found');
+    }
+
+    const uploadLink = `${process.env.REPLIT_DOMAINS?.split(',')[0]}/upload/${vendor.id}`;
+    const message = `Hi ${vendor.name}, your Certificate of Insurance expires in ${daysUntilExpiry} days. Please upload a renewed certificate: ${uploadLink} - ${account.companyName}`;
+
+    const success = await this.sendSMS(vendor.phone, message);
+
+    if (success) {
+      // Create timeline event
+      await storage.createTimelineEvent({
+        accountId: account.id,
+        vendorId: vendor.id,
+        eventType: 'coi_warning',
+        title: `COI expiry SMS sent to ${vendor.name}`,
+        description: `COI expires in ${daysUntilExpiry} days`,
+      });
+    }
+
+    return success;
+  }
 }
 
 export const smsService = new SMSService();

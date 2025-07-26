@@ -126,17 +126,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.post('/api/qbo/callback', async (req, res) => {
+  app.get('/api/qbo/callback', async (req, res) => {
     try {
-      const { code, state: accountId } = req.body;
+      const { code, state: accountId, realmId } = req.query;
       
-      if (!code || !accountId) {
-        return res.status(400).json({ message: 'Missing code or account ID' });
+      if (!code || !accountId || !realmId) {
+        return res.status(400).json({ message: 'Missing code, account ID, or realm ID' });
       }
 
-      const tokens = await quickbooksService.exchangeCodeForTokens(code, accountId);
+      const tokens = await quickbooksService.exchangeCodeForTokens(code as string, realmId as string);
       
-      await storage.updateAccount(accountId, {
+      await storage.updateAccount(accountId as string, {
         qboCompanyId: tokens.companyId,
         qboAccessToken: tokens.accessToken,
         qboRefreshToken: tokens.refreshToken,
@@ -146,8 +146,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Start initial sync
       setTimeout(async () => {
         try {
-          await quickbooksService.syncVendors(accountId);
-          await quickbooksService.syncBills(accountId);
+          await quickbooksService.syncVendors(accountId as string);
+          await quickbooksService.syncBills(accountId as string);
           
           eventBus.emit('qbo.sync', { accountId, vendorCount: 0 });
         } catch (error) {
@@ -155,7 +155,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         }
       }, 1000);
 
-      res.json({ success: true });
+      // Redirect to success page
+      res.redirect(`${process.env.REPLIT_DOMAINS?.split(',')[0]}/onboarding?qbo=success`);
     } catch (error) {
       console.error("Error in QBO callback:", error);
       res.status(500).json({ message: "Failed to connect QuickBooks" });

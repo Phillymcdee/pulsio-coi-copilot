@@ -34,7 +34,7 @@ export class QuickBooksService {
       `state=${state}`;
   }
 
-  async exchangeCodeForTokens(code: string, accountId: string): Promise<{ accessToken: string; refreshToken: string; companyId: string }> {
+  async exchangeCodeForTokens(code: string, companyId: string): Promise<{ accessToken: string; refreshToken: string; companyId: string }> {
     const clientId = process.env.QBO_CLIENT_ID;
     const clientSecret = process.env.QBO_CLIENT_SECRET;
     const redirectUri = process.env.QBO_REDIRECT_URI || `${process.env.REPLIT_DOMAINS?.split(',')[0]}/api/qbo/callback`;
@@ -53,19 +53,17 @@ export class QuickBooksService {
     });
 
     if (!response.ok) {
+      const errorText = await response.text();
+      console.error('QBO token exchange error:', errorText);
       throw new Error('Failed to exchange code for tokens');
     }
 
     const data = await response.json();
-    
-    // Extract company ID from the realmId parameter (should be passed by QBO)
-    // For now, we'll use a placeholder - in real implementation, this comes from the OAuth callback
-    const companyId = 'sandbox_company_id';
 
     return {
       accessToken: data.access_token,
       refreshToken: data.refresh_token,
-      companyId,
+      companyId, // Use the realmId passed from OAuth callback
     };
   }
 

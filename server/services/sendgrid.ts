@@ -18,13 +18,21 @@ interface EmailParams {
 
 export async function sendEmail(params: EmailParams): Promise<boolean> {
   try {
-    await mailService.send({
+    const emailData: any = {
       to: params.to,
       from: params.from,
       subject: params.subject,
-      text: params.text,
-      html: params.html,
-    });
+    };
+    
+    if (params.text) {
+      emailData.text = params.text;
+    }
+    
+    if (params.html) {
+      emailData.html = params.html;
+    }
+    
+    await mailService.send(emailData);
     return true;
   } catch (error) {
     console.error('SendGrid email error:', error);
@@ -215,6 +223,58 @@ export class EmailService {
       html: htmlContent,
       text: textContent,
     });
+  }
+
+  async sendCOIExpiryWarning(vendorId: string, daysUntilExpiry: number): Promise<boolean> {
+    const vendor = await storage.getVendor(vendorId);
+    if (!vendor?.email) {
+      throw new Error('Vendor email not found');
+    }
+
+    const account = await storage.getAccountByUserId(vendor.accountId);
+    if (!account) {
+      throw new Error('Account not found');
+    }
+
+    const uploadLink = `${process.env.REPLIT_DOMAINS?.split(',')[0]}/upload/${vendor.id}`;
+
+    const htmlContent = `
+      <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+        <h2 style="color: #dc2626;">Certificate of Insurance Expiring Soon</h2>
+        <p>Hello ${vendor.name},</p>
+        <p>Your Certificate of Insurance will expire in <strong>${daysUntilExpiry} days</strong>. Please upload a renewed certificate to avoid any service interruptions.</p>
+        <p style="margin: 30px 0;">
+          <a href="${uploadLink}" style="background-color: #dc2626; color: white; padding: 12px 24px; text-decoration: none; border-radius: 6px; display: inline-block;">
+            Upload New COI
+          </a>
+        </p>
+        <p>If you have any questions, please don't hesitate to contact us.</p>
+        <p>Best regards,<br>${account.companyName}</p>
+      </div>
+    `;
+
+    const textContent = htmlContent.replace(/<[^>]*>/g, '').replace(/\n\s*\n/g, '\n\n');
+
+    const success = await sendEmail({
+      to: vendor.email,
+      from: this.defaultFromEmail,
+      subject: `COI Expiring in ${daysUntilExpiry} Days - ${account.companyName}`,
+      html: htmlContent,
+      text: textContent,
+    });
+
+    if (success) {
+      // Create timeline event
+      await storage.createTimelineEvent({
+        accountId: account.id,
+        vendorId: vendor.id,
+        eventType: 'coi_warning',
+        title: `COI expiry warning sent to ${vendor.name}`,
+        description: `COI expires in ${daysUntilExpiry} days`,
+      });
+    }
+
+    return success;
   }
 }
 

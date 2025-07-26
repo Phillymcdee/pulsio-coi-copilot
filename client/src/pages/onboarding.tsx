@@ -110,7 +110,7 @@ export default function Onboarding() {
   }
 
   // If account exists and onboarding is complete, redirect to dashboard
-  if (account?.isOnboardingComplete) {
+  if (account && typeof account === 'object' && 'isOnboardingComplete' in account && account.isOnboardingComplete) {
     navigate("/dashboard");
     return null;
   }
