@@ -1,0 +1,226 @@
+import { storage } from '../storage';
+
+interface QBOVendor {
+  Id: string;
+  Name: string;
+  PrimaryEmailAddr?: { Address: string };
+  PrimaryPhone?: { FreeFormNumber: string };
+}
+
+interface QBOBill {
+  Id: string;
+  VendorRef: { value: string };
+  DocNumber?: string;
+  TotalAmt: number;
+  DueDate?: string;
+}
+
+export class QuickBooksService {
+  private baseUrl = 'https://sandbox-quickbooks.api.intuit.com';
+
+  async getAuthUrl(accountId: string): Promise<string> {
+    const clientId = process.env.QBO_CLIENT_ID;
+    const redirectUri = process.env.QBO_REDIRECT_URI || `${process.env.REPLIT_DOMAINS?.split(',')[0]}/api/qbo/callback`;
+    
+    const scope = 'com.intuit.quickbooks.accounting';
+    const state = accountId; // Pass account ID as state for callback
+    
+    return `https://appcenter.intuit.com/connect/oauth2?` +
+      `client_id=${clientId}&` +
+      `scope=${encodeURIComponent(scope)}&` +
+      `redirect_uri=${encodeURIComponent(redirectUri)}&` +
+      `response_type=code&` +
+      `access_type=offline&` +
+      `state=${state}`;
+  }
+
+  async exchangeCodeForTokens(code: string, accountId: string): Promise<{ accessToken: string; refreshToken: string; companyId: string }> {
+    const clientId = process.env.QBO_CLIENT_ID;
+    const clientSecret = process.env.QBO_CLIENT_SECRET;
+    const redirectUri = process.env.QBO_REDIRECT_URI || `${process.env.REPLIT_DOMAINS?.split(',')[0]}/api/qbo/callback`;
+
+    const response = await fetch('https://oauth.platform.intuit.com/oauth2/v1/tokens/bearer', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/x-www-form-urlencoded',
+        'Authorization': `Basic ${Buffer.from(`${clientId}:${clientSecret}`).toString('base64')}`,
+      },
+      body: new URLSearchParams({
+        grant_type: 'authorization_code',
+        code,
+        redirect_uri: redirectUri,
+      }),
+    });
+
+    if (!response.ok) {
+      throw new Error('Failed to exchange code for tokens');
+    }
+
+    const data = await response.json();
+    
+    // Extract company ID from the realmId parameter (should be passed by QBO)
+    // For now, we'll use a placeholder - in real implementation, this comes from the OAuth callback
+    const companyId = 'sandbox_company_id';
+
+    return {
+      accessToken: data.access_token,
+      refreshToken: data.refresh_token,
+      companyId,
+    };
+  }
+
+  async refreshAccessToken(refreshToken: string): Promise<{ accessToken: string; refreshToken: string }> {
+    const clientId = process.env.QBO_CLIENT_ID;
+    const clientSecret = process.env.QBO_CLIENT_SECRET;
+
+    const response = await fetch('https://oauth.platform.intuit.com/oauth2/v1/tokens/bearer', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/x-www-form-urlencoded',
+        'Authorization': `Basic ${Buffer.from(`${clientId}:${clientSecret}`).toString('base64')}`,
+      },
+      body: new URLSearchParams({
+        grant_type: 'refresh_token',
+        refresh_token: refreshToken,
+      }),
+    });
+
+    if (!response.ok) {
+      throw new Error('Failed to refresh access token');
+    }
+
+    const data = await response.json();
+    return {
+      accessToken: data.access_token,
+      refreshToken: data.refresh_token,
+    };
+  }
+
+  async syncVendors(accountId: string): Promise<void> {
+    const account = await storage.getAccountByUserId(accountId);
+    if (!account?.qboAccessToken || !account.qboCompanyId) {
+      throw new Error('QuickBooks not connected');
+    }
+
+    try {
+      const response = await fetch(
+        `${this.baseUrl}/v3/company/${account.qboCompanyId}/query?query=SELECT * FROM Vendor`,
+        {
+          headers: {
+            'Authorization': `Bearer ${account.qboAccessToken}`,
+            'Accept': 'application/json',
+          },
+        }
+      );
+
+      if (!response.ok) {
+        if (response.status === 401) {
+          // Try to refresh token
+          if (account.qboRefreshToken) {
+            const tokens = await this.refreshAccessToken(account.qboRefreshToken);
+            await storage.updateAccount(account.id, {
+              qboAccessToken: tokens.accessToken,
+              qboRefreshToken: tokens.refreshToken,
+              qboTokenExpiry: new Date(Date.now() + 3600 * 1000), // 1 hour
+            });
+            // Retry the request
+            return this.syncVendors(accountId);
+          }
+        }
+        throw new Error('Failed to sync vendors from QuickBooks');
+      }
+
+      const data = await response.json();
+      const vendors: QBOVendor[] = data.QueryResponse?.Vendor || [];
+
+      for (const qboVendor of vendors) {
+        const existingVendor = await storage.getVendorByQboId(account.id, qboVendor.Id);
+        
+        if (!existingVendor) {
+          await storage.createVendor({
+            accountId: account.id,
+            qboId: qboVendor.Id,
+            name: qboVendor.Name,
+            email: qboVendor.PrimaryEmailAddr?.Address || null,
+            phone: qboVendor.PrimaryPhone?.FreeFormNumber || null,
+          });
+        } else {
+          // Update existing vendor
+          await storage.updateVendor(existingVendor.id, {
+            name: qboVendor.Name,
+            email: qboVendor.PrimaryEmailAddr?.Address || null,
+            phone: qboVendor.PrimaryPhone?.FreeFormNumber || null,
+          });
+        }
+      }
+
+      // Create timeline event
+      await storage.createTimelineEvent({
+        accountId: account.id,
+        eventType: 'qbo_sync',
+        title: 'QuickBooks sync completed',
+        description: `${vendors.length} vendors synced`,
+      });
+
+    } catch (error) {
+      console.error('Error syncing vendors:', error);
+      throw error;
+    }
+  }
+
+  async syncBills(accountId: string): Promise<void> {
+    const account = await storage.getAccountByUserId(accountId);
+    if (!account?.qboAccessToken || !account.qboCompanyId) {
+      throw new Error('QuickBooks not connected');
+    }
+
+    try {
+      const response = await fetch(
+        `${this.baseUrl}/v3/company/${account.qboCompanyId}/query?query=SELECT * FROM Bill WHERE MetaData.LastUpdatedTime > '2024-01-01'`,
+        {
+          headers: {
+            'Authorization': `Bearer ${account.qboAccessToken}`,
+            'Accept': 'application/json',
+          },
+        }
+      );
+
+      if (!response.ok) {
+        throw new Error('Failed to sync bills from QuickBooks');
+      }
+
+      const data = await response.json();
+      const bills: QBOBill[] = data.QueryResponse?.Bill || [];
+
+      for (const qboBill of bills) {
+        const vendor = await storage.getVendorByQboId(account.id, qboBill.VendorRef.value);
+        if (!vendor) continue;
+
+        const existingBill = await storage.getBillByQboId(account.id, qboBill.Id);
+        
+        if (!existingBill) {
+          await storage.createBill({
+            accountId: account.id,
+            vendorId: vendor.id,
+            qboId: qboBill.Id,
+            billNumber: qboBill.DocNumber || null,
+            amount: qboBill.TotalAmt.toString(),
+            dueDate: qboBill.DueDate ? new Date(qboBill.DueDate) : null,
+            // Assume 2% discount if paid within 10 days
+            discountPercent: '2.00',
+            discountAmount: (qboBill.TotalAmt * 0.02).toString(),
+            discountDueDate: qboBill.DueDate 
+              ? new Date(new Date(qboBill.DueDate).getTime() - 10 * 24 * 60 * 60 * 1000)
+              : null,
+          });
+        }
+      }
+
+    } catch (error) {
+      console.error('Error syncing bills:', error);
+      throw error;
+    }
+  }
+}
+
+export const quickbooksService = new QuickBooksService();

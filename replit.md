@@ -1,0 +1,119 @@
+# Pulsio - Automated Document Collection for Contractors
+
+## Overview
+
+Pulsio is a full-stack web application that automates the collection of subcontractor W-9s and Certificates of Insurance (COIs) for trade-service contractors using QuickBooks Online integration. The system helps contractors capture early-payment discounts, avoid IRS penalties, and reduce administrative overhead by automatically tracking missing documents and sending reminders.
+
+## User Preferences
+
+Preferred communication style: Simple, everyday language.
+
+## System Architecture
+
+This is a modern full-stack application built with a **monorepo structure** containing both client and server code:
+
+- **Frontend**: React with TypeScript, built using Vite
+- **Backend**: Node.js/Express server with TypeScript
+- **Database**: PostgreSQL via Neon with Drizzle ORM
+- **Authentication**: Replit OAuth integration
+- **Styling**: Tailwind CSS with shadcn/ui components
+- **State Management**: TanStack Query for server state
+- **Real-time Updates**: Server-Sent Events (SSE)
+
+## Key Components
+
+### 1. Authentication & User Management
+- **Replit OAuth**: Integrated authentication using Replit's OIDC
+- **Session Management**: PostgreSQL-backed sessions with connect-pg-simple
+- **User Storage**: Mandatory user table structure for Replit Auth compatibility
+
+### 2. Database Schema (Drizzle ORM)
+- **Users**: Basic user profile and Stripe integration
+- **Accounts**: Company settings and QuickBooks tokens
+- **Vendors**: Contractor information synced from QuickBooks
+- **Documents**: W-9s and COI tracking with status and expiry
+- **Reminders**: Automated reminder history
+- **Bills**: Payment tracking for discount opportunities
+- **Timeline Events**: Activity feed for real-time updates
+
+### 3. External Service Integrations
+- **QuickBooks Online**: OAuth flow, vendor sync, bill tracking
+- **SendGrid**: Email notifications and reminders
+- **Twilio**: SMS reminder capabilities
+- **Stripe**: Subscription billing and payment processing
+- **Replit Object Storage**: Document file storage
+
+### 4. Frontend Architecture
+- **React Router**: Wouter for lightweight routing
+- **Component Library**: shadcn/ui components with Radix primitives
+- **Forms**: React Hook Form with Zod validation
+- **Responsive Design**: Mobile-first Tailwind CSS approach
+- **Real-time UI**: SSE integration for live updates
+
+### 5. Background Services
+- **Cron Jobs**: Automated QuickBooks sync, reminder scheduling, COI expiry checks
+- **Event Bus**: In-memory event system for real-time notifications
+- **File Processing**: Multer for document uploads with 10MB limit
+
+## Data Flow
+
+### 1. User Onboarding
+1. User signs up via Replit OAuth
+2. 4-step wizard: QuickBooks connection → reminder cadence → email templates → test & launch
+3. Initial QuickBooks sync pulls vendors and bills
+4. System begins monitoring for missing documents
+
+### 2. Document Collection Workflow
+1. Cron jobs sync new vendors/bills from QuickBooks every 20 minutes
+2. System identifies missing W-9s and COIs
+3. Automated reminders sent via email/SMS based on cadence settings
+4. Vendors upload documents via secure upload links
+5. Real-time notifications update dashboard via SSE
+
+### 3. Risk Management
+- COI expiry monitoring with proactive alerts
+- Early-payment discount tracking on bills
+- Compliance risk scoring based on missing documents
+- Timeline events for audit trail
+
+## External Dependencies
+
+### Required Environment Variables
+- `DATABASE_URL`: Neon PostgreSQL connection string
+- `SESSION_SECRET`: Session encryption key
+- `QBO_CLIENT_ID`, `QBO_CLIENT_SECRET`: QuickBooks OAuth credentials
+- `SENDGRID_API_KEY`, `FROM_EMAIL`: Email service configuration
+- `TWILIO_*`: SMS service credentials (optional)
+- `STRIPE_SECRET_KEY`, `VITE_STRIPE_PUBLIC_KEY`: Payment processing
+- `REPLIT_DOMAINS`: Required for Replit OAuth
+
+### Third-party Services
+- **Neon Database**: Serverless PostgreSQL hosting
+- **QuickBooks Online API**: Vendor and bill data source
+- **SendGrid**: Transactional email delivery
+- **Twilio**: SMS messaging (optional feature)
+- **Stripe**: Subscription billing platform
+- **Replit Object Storage**: Document file storage
+
+## Deployment Strategy
+
+### Development
+- `npm run dev`: Starts development server with TSX for hot reloading
+- Vite dev server with HMR for frontend
+- Express server with middleware for API routes
+
+### Production Build
+- `npm run build`: Vite build for client + esbuild bundle for server
+- `npm start`: Runs production server from `dist/` directory
+- Database migrations via `npm run db:push` (Drizzle Kit)
+
+### Key Architectural Decisions
+
+1. **Monorepo Structure**: Simplifies development and deployment by keeping client/server code together
+2. **Drizzle ORM**: Type-safe database queries with PostgreSQL dialect
+3. **Server-Sent Events**: Chosen over WebSockets for simpler real-time updates
+4. **Replit-Native**: Leverages Replit's built-in authentication and services
+5. **Background Jobs**: Node-cron for reliable scheduled tasks without external dependencies
+6. **File Storage**: Replit Object Storage eliminates need for external S3 setup
+
+The architecture prioritizes rapid development and deployment while maintaining type safety and real-time user experience. The system is designed to handle the critical business workflow of document collection with automated reminders and compliance tracking.

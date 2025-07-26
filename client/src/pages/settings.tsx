@@ -1,0 +1,453 @@
+import { useEffect, useState } from "react";
+import { useAuth } from "@/hooks/useAuth";
+import { useToast } from "@/hooks/use-toast";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { apiRequest } from "@/lib/queryClient";
+import { isUnauthorizedError } from "@/lib/authUtils";
+import { Navigation } from "@/components/layout/Navigation";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
+import { Separator } from "@/components/ui/separator";
+import { Badge } from "@/components/ui/badge";
+import { useForm } from "react-hook-form";
+import { 
+  Settings as SettingsIcon, 
+  Mail, 
+  MessageSquare, 
+  Clock, 
+  CreditCard,
+  Save,
+  Loader2,
+  CheckCircle,
+  ExternalLink
+} from "lucide-react";
+
+export default function Settings() {
+  const { toast } = useToast();
+  const { isAuthenticated, isLoading } = useAuth();
+  const queryClient = useQueryClient();
+
+  // Redirect to login if not authenticated
+  useEffect(() => {
+    if (!isLoading && !isAuthenticated) {
+      toast({
+        title: "Unauthorized",
+        description: "You are logged out. Logging in again...",
+        variant: "destructive",
+      });
+      setTimeout(() => {
+        window.location.href = "/api/login";
+      }, 500);
+      return;
+    }
+  }, [isAuthenticated, isLoading, toast]);
+
+  const { data: account, isLoading: accountLoading } = useQuery({
+    queryKey: ["/api/account"],
+    enabled: isAuthenticated,
+  });
+
+  const { data: pricing } = useQuery({
+    queryKey: ["/api/pricing"],
+  });
+
+  const { register, handleSubmit, watch, setValue, reset } = useForm({
+    defaultValues: {
+      companyName: '',
+      reminderCadence: '0 9 * * *',
+      emailTemplate: '',
+      smsTemplate: '',
+    }
+  });
+
+  // Reset form when account data loads
+  useEffect(() => {
+    if (account) {
+      reset({
+        companyName: account.companyName || '',
+        reminderCadence: account.reminderCadence || '0 9 * * *',
+        emailTemplate: account.emailTemplate || '',
+        smsTemplate: account.smsTemplate || '',
+      });
+    }
+  }, [account, reset]);
+
+  const updateAccountMutation = useMutation({
+    mutationFn: async (data: any) => {
+      const response = await apiRequest("PATCH", "/api/account", data);
+      return response.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/account"] });
+      toast({
+        title: "Settings Updated",
+        description: "Your account settings have been saved successfully.",
+      });
+    },
+    onError: (error) => {
+      if (isUnauthorizedError(error)) {
+        toast({
+          title: "Unauthorized",
+          description: "You are logged out. Logging in again...",
+          variant: "destructive",
+        });
+        setTimeout(() => {
+          window.location.href = "/api/login";
+        }, 500);
+        return;
+      }
+      toast({
+        title: "Error",
+        description: "Failed to update settings. Please try again.",
+        variant: "destructive",
+      });
+    },
+  });
+
+  const createPortalSessionMutation = useMutation({
+    mutationFn: async () => {
+      const response = await apiRequest("POST", "/api/create-portal-session");
+      return response.json();
+    },
+    onSuccess: (data) => {
+      window.open(data.url, '_blank');
+    },
+    onError: (error) => {
+      if (isUnauthorizedError(error)) {
+        toast({
+          title: "Unauthorized",
+          description: "You are logged out. Logging in again...",
+          variant: "destructive",
+        });
+        setTimeout(() => {
+          window.location.href = "/api/login";
+        }, 500);
+        return;
+      }
+      toast({
+        title: "Error",
+        description: "Failed to open billing portal. Please try again.",
+        variant: "destructive",
+      });
+    },
+  });
+
+  const manualSyncMutation = useMutation({
+    mutationFn: async () => {
+      const response = await apiRequest("POST", "/api/sync");
+      return response.json();
+    },
+    onSuccess: () => {
+      toast({
+        title: "Sync Started",
+        description: "QuickBooks sync has been initiated. Check the dashboard for updates.",
+      });
+    },
+    onError: (error) => {
+      toast({
+        title: "Error",
+        description: "Failed to start sync. Please try again.",
+        variant: "destructive",
+      });
+    },
+  });
+
+  const onSubmit = (data: any) => {
+    updateAccountMutation.mutate(data);
+  };
+
+  if (isLoading || !isAuthenticated) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gray-50">
+        <div className="animate-spin w-8 h-8 border-4 border-primary border-t-transparent rounded-full" />
+      </div>
+    );
+  }
+
+  if (accountLoading) {
+    return (
+      <div className="min-h-screen bg-gray-50">
+        <Navigation />
+        <div className="flex items-center justify-center py-24">
+          <div className="animate-spin w-8 h-8 border-4 border-primary border-t-transparent rounded-full" />
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="min-h-screen bg-gray-50">
+      <Navigation />
+      
+      <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        <div className="mb-8">
+          <div className="flex items-center space-x-3 mb-2">
+            <SettingsIcon className="w-6 h-6 text-primary" />
+            <h1 className="text-2xl font-bold text-gray-900">Account Settings</h1>
+          </div>
+          <p className="text-gray-600">Manage your Pulsio account preferences and integrations.</p>
+        </div>
+
+        <div className="space-y-6">
+          {/* Company Information */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center space-x-2">
+                <SettingsIcon className="w-5 h-5" />
+                <span>Company Information</span>
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
+                <div>
+                  <Label htmlFor="companyName">Company Name</Label>
+                  <Input
+                    id="companyName"
+                    {...register("companyName", { required: true })}
+                    className="mt-1"
+                  />
+                </div>
+                
+                <div className="flex justify-end">
+                  <Button
+                    type="submit"
+                    disabled={updateAccountMutation.isPending}
+                  >
+                    {updateAccountMutation.isPending ? (
+                      <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                    ) : (
+                      <Save className="w-4 h-4 mr-2" />
+                    )}
+                    Save Changes
+                  </Button>
+                </div>
+              </form>
+            </CardContent>
+          </Card>
+
+          {/* Reminder Settings */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center space-x-2">
+                <Clock className="w-5 h-5" />
+                <span>Reminder Settings</span>
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
+                <div>
+                  <Label className="text-base font-medium">Reminder Frequency</Label>
+                  <p className="text-sm text-gray-600 mb-4">How often should we send reminders for missing documents?</p>
+                  
+                  <RadioGroup 
+                    value={watch("reminderCadence")} 
+                    onValueChange={(value) => setValue("reminderCadence", value)}
+                  >
+                    <div className="flex items-center space-x-2 p-3 border rounded-lg hover:bg-gray-50">
+                      <RadioGroupItem value="0 9 * * *" id="daily" />
+                      <Label htmlFor="daily" className="flex-1 cursor-pointer">
+                        <div className="font-medium">Daily (Recommended)</div>
+                        <div className="text-sm text-gray-500">Every day at 9 AM</div>
+                      </Label>
+                    </div>
+                    
+                    <div className="flex items-center space-x-2 p-3 border rounded-lg hover:bg-gray-50">
+                      <RadioGroupItem value="0 9 * * 1,3,5" id="mwf" />
+                      <Label htmlFor="mwf" className="flex-1 cursor-pointer">
+                        <div className="font-medium">Monday, Wednesday, Friday</div>
+                        <div className="text-sm text-gray-500">Three times per week at 9 AM</div>
+                      </Label>
+                    </div>
+                    
+                    <div className="flex items-center space-x-2 p-3 border rounded-lg hover:bg-gray-50">
+                      <RadioGroupItem value="0 9 * * 1" id="weekly" />
+                      <Label htmlFor="weekly" className="flex-1 cursor-pointer">
+                        <div className="font-medium">Weekly</div>
+                        <div className="text-sm text-gray-500">Every Monday at 9 AM</div>
+                      </Label>
+                    </div>
+                  </RadioGroup>
+                </div>
+                
+                <div className="flex justify-end">
+                  <Button
+                    type="submit"
+                    disabled={updateAccountMutation.isPending}
+                  >
+                    {updateAccountMutation.isPending ? (
+                      <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                    ) : (
+                      <Save className="w-4 h-4 mr-2" />
+                    )}
+                    Save Changes
+                  </Button>
+                </div>
+              </form>
+            </CardContent>
+          </Card>
+
+          {/* Email & SMS Templates */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center space-x-2">
+                <Mail className="w-5 h-5" />
+                <span>Message Templates</span>
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
+                <div>
+                  <Label htmlFor="emailTemplate">Email Template</Label>
+                  <p className="text-sm text-gray-600 mb-2">
+                    Customize your email reminder template. Leave blank to use our professional default.
+                  </p>
+                  <Textarea
+                    id="emailTemplate"
+                    {...register("emailTemplate")}
+                    placeholder="Hello {{vendor_name}}, we need your W-9 form for tax reporting..."
+                    rows={6}
+                    className="mt-1"
+                  />
+                  <p className="text-xs text-gray-500 mt-1">
+                    Available merge tags: {'{{vendor_name}}'}, {'{{company_name}}'}, {'{{upload_link}}'}
+                  </p>
+                </div>
+                
+                <div>
+                  <Label htmlFor="smsTemplate">SMS Template</Label>
+                  <p className="text-sm text-gray-600 mb-2">
+                    Short message for SMS reminders. Keep under 160 characters.
+                  </p>
+                  <Textarea
+                    id="smsTemplate"
+                    {...register("smsTemplate")}
+                    placeholder="Hi {{vendor_name}}, please upload your W-9: {{upload_link}} - {{company_name}}"
+                    rows={3}
+                    className="mt-1"
+                  />
+                  <p className="text-xs text-gray-500 mt-1">
+                    Character count: {watch("smsTemplate")?.length || 0}/160
+                  </p>
+                </div>
+                
+                <div className="flex justify-end">
+                  <Button
+                    type="submit"
+                    disabled={updateAccountMutation.isPending}
+                  >
+                    {updateAccountMutation.isPending ? (
+                      <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                    ) : (
+                      <Save className="w-4 h-4 mr-2" />
+                    )}
+                    Save Templates
+                  </Button>
+                </div>
+              </form>
+            </CardContent>
+          </Card>
+
+          {/* QuickBooks Integration */}
+          <Card>
+            <CardHeader>
+              <CardTitle>QuickBooks Integration</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="flex items-center justify-between">
+                <div>
+                  <div className="font-medium">Connection Status</div>
+                  <div className="text-sm text-gray-600">
+                    {account?.qboAccessToken ? 'Connected and syncing' : 'Not connected'}
+                  </div>
+                </div>
+                <div className="flex items-center space-x-2">
+                  {account?.qboAccessToken ? (
+                    <Badge variant="secondary" className="text-green-700 bg-green-50">
+                      <CheckCircle className="w-3 h-3 mr-1" />
+                      Connected
+                    </Badge>
+                  ) : (
+                    <Badge variant="secondary" className="text-red-700 bg-red-50">
+                      Not Connected
+                    </Badge>
+                  )}
+                </div>
+              </div>
+              
+              {account?.qboAccessToken && (
+                <div className="flex items-center space-x-2">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => manualSyncMutation.mutate()}
+                    disabled={manualSyncMutation.isPending}
+                  >
+                    {manualSyncMutation.isPending ? (
+                      <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                    ) : (
+                      <CheckCircle className="w-4 h-4 mr-2" />
+                    )}
+                    Sync Now
+                  </Button>
+                  <p className="text-sm text-gray-500">
+                    Last sync: {account.updatedAt ? formatDistanceToNow(new Date(account.updatedAt), { addSuffix: true }) : 'Never'}
+                  </p>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+
+          {/* Billing & Subscription */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center space-x-2">
+                <CreditCard className="w-5 h-5" />
+                <span>Billing & Subscription</span>
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="flex items-center justify-between">
+                <div>
+                  <div className="font-medium">Current Plan</div>
+                  <div className="text-sm text-gray-600">
+                    {account?.plan || 'Free Trial'} Plan
+                  </div>
+                </div>
+                <Badge variant="secondary">
+                  {account?.plan || 'Trial'}
+                </Badge>
+              </div>
+              
+              <Separator />
+              
+              <div className="flex items-center justify-between">
+                <div>
+                  <div className="font-medium">Manage Billing</div>
+                  <div className="text-sm text-gray-600">
+                    Update payment method, view invoices, and manage your subscription
+                  </div>
+                </div>
+                <Button
+                  variant="outline"
+                  onClick={() => createPortalSessionMutation.mutate()}
+                  disabled={createPortalSessionMutation.isPending}
+                >
+                  {createPortalSessionMutation.isPending ? (
+                    <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                  ) : (
+                    <ExternalLink className="w-4 h-4 mr-2" />
+                  )}
+                  Billing Portal
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+      </div>
+    </div>
+  );
+}
