@@ -10,6 +10,7 @@ import { stripeService } from "./services/stripe";
 import { sseService, eventBus } from "./services/sse";
 import { cronService } from "./services/cron";
 import { documentStorageService } from "./services/documentStorage";
+import { ocrService } from "./services/ocr";
 import multer from 'multer';
 import { z } from 'zod';
 
@@ -329,18 +330,38 @@ export async function registerRoutes(app: Express): Promise<Server> {
         mimeType: file.mimetype,
       });
 
-      // Update vendor status
+      // Update vendor status and extract expiry date for COI
       if (type === 'W9') {
         await storage.updateVendor(vendorId, { w9Status: 'RECEIVED' });
       } else if (type === 'COI') {
-        // For COI, extract expiry date (would need OCR in production)
-        const expiryDate = new Date();
-        expiryDate.setFullYear(expiryDate.getFullYear() + 1); // Assume 1 year validity
+        // Extract actual expiry date from COI document using OCR
+        const { expiryDate: extractedDate, extractedText } = await ocrService.extractCOIInformation(file.buffer, file.mimetype);
+        
+        // Use extracted date or fall back to 1 year from now
+        const expiryDate = extractedDate || (() => {
+          const fallbackDate = new Date();
+          fallbackDate.setFullYear(fallbackDate.getFullYear() + 1);
+          console.warn(`No expiry date found in COI for ${vendor.name}, using 1-year fallback`);
+          return fallbackDate;
+        })();
+        
+        // Update document record with extracted text
+        await storage.updateDocument(document.id, { 
+          extractedText: extractedText || null,
+          expiresAt: expiryDate 
+        });
         
         await storage.updateVendor(vendorId, { 
           coiStatus: 'RECEIVED',
           coiExpiry: expiryDate,
         });
+
+        // Log the result for monitoring
+        if (extractedDate) {
+          console.log(`COI expiry date extracted for ${vendor.name}: ${expiryDate.toISOString()}`);
+        } else {
+          console.log(`COI uploaded for ${vendor.name} - using fallback expiry date: ${expiryDate.toISOString()}`);
+        }
       }
 
       // Create timeline event
@@ -502,6 +523,39 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error("Error starting sync:", error);
       res.status(500).json({ message: "Failed to start sync" });
+    }
+  });
+
+  // OCR Debug endpoint - View extracted text from documents
+  app.get('/api/debug/ocr/:documentId', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const account = await storage.getAccountByUserId(userId);
+      const { documentId } = req.params;
+      
+      if (!account) {
+        return res.status(404).json({ message: 'Account not found' });
+      }
+
+      const document = await storage.getDocumentById(documentId);
+      if (!document || document.accountId !== account.id) {
+        return res.status(404).json({ message: 'Document not found' });
+      }
+
+      res.json({
+        document: {
+          id: document.id,
+          type: document.type,
+          filename: document.filename,
+          uploadedAt: document.uploadedAt,
+          expiresAt: document.expiresAt,
+          extractedText: document.extractedText,
+        },
+        vendor: await storage.getVendor(document.vendorId),
+      });
+    } catch (error) {
+      console.error("Error fetching OCR debug data:", error);
+      res.status(500).json({ message: "Failed to fetch OCR debug data" });
     }
   });
 

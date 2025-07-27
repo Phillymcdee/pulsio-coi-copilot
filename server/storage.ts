@@ -190,6 +190,14 @@ export class DatabaseStorage implements IStorage {
     return document;
   }
 
+  async getDocumentById(documentId: string): Promise<Document | undefined> {
+    const [document] = await db
+      .select()
+      .from(documents)
+      .where(eq(documents.id, documentId));
+    return document;
+  }
+
   async createDocument(documentData: InsertDocument): Promise<Document> {
     const [document] = await db.insert(documents).values(documentData).returning();
     return document;

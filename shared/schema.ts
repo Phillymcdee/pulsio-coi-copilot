@@ -93,6 +93,7 @@ export const documents = pgTable("documents", {
   mimeType: varchar("mime_type"),
   uploadedAt: timestamp("uploaded_at").defaultNow(),
   expiresAt: timestamp("expires_at"),
+  extractedText: text("extracted_text"), // OCR extracted text for COI documents
 });
 
 // Reminders table
