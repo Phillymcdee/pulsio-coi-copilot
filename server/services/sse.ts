@@ -62,9 +62,9 @@ export class SSEService {
   }
 
   broadcast(event: SSEEvent): void {
-    for (const accountId of this.clients.keys()) {
+    this.clients.forEach((client, accountId) => {
       this.sendToClient(accountId, event);
-    }
+    });
   }
 
   sendDocumentReceived(accountId: string, vendorName: string, docType: 'W9' | 'COI'): void {
