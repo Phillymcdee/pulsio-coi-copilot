@@ -55,8 +55,17 @@ export class CronService {
       for (const account of accounts) {
         if (account.qboAccessToken && account.qboCompanyId) {
           try {
+            const vendorsBefore = await storage.getVendorsByAccountId(account.id);
             await quickbooksService.syncVendors(account.userId);
             await quickbooksService.syncBills(account.userId);
+            const vendorsAfter = await storage.getVendorsByAccountId(account.id);
+            
+            // Emit SSE event for sync completion
+            eventBus.emit('qbo.sync', {
+              accountId: account.id,
+              vendorCount: vendorsAfter.length,
+            });
+            
             console.log(`Synced account ${account.companyName}`);
           } catch (error) {
             console.error(`Error syncing account ${account.companyName}:`, error);
@@ -157,9 +166,23 @@ export class CronService {
           try {
             await emailService.sendW9Reminder(vendor.id, uploadLink);
             
+            // Emit SSE event for reminder sent
+            eventBus.emit('reminder.sent', {
+              accountId,
+              vendorName: vendor.name,
+              docType: 'W9',
+              channel: 'email',
+            });
+            
             // Also send SMS if phone available
             if (vendor.phone) {
               await smsService.sendW9ReminderSMS(vendor.id, uploadLink);
+              eventBus.emit('reminder.sent', {
+                accountId,
+                vendorName: vendor.name,
+                docType: 'W9',
+                channel: 'sms',
+              });
             }
           } catch (error) {
             console.error(`Error sending W-9 reminder to ${vendor.name}:`, error);
@@ -171,9 +194,23 @@ export class CronService {
           try {
             await emailService.sendCOIReminder(vendor.id, uploadLink);
             
+            // Emit SSE event for reminder sent
+            eventBus.emit('reminder.sent', {
+              accountId,
+              vendorName: vendor.name,
+              docType: 'COI',
+              channel: 'email',
+            });
+            
             // Also send SMS if phone available
             if (vendor.phone) {
               await smsService.sendCOIReminderSMS(vendor.id, uploadLink);
+              eventBus.emit('reminder.sent', {
+                accountId,
+                vendorName: vendor.name,
+                docType: 'COI',
+                channel: 'sms',
+              });
             }
           } catch (error) {
             console.error(`Error sending COI reminder to ${vendor.name}:`, error);

@@ -18,6 +18,52 @@ interface QBOBill {
 export class QuickBooksService {
   private baseUrl = 'https://sandbox-quickbooks.api.intuit.com';
 
+  // Calculate and capture early payment discounts
+  async captureEarlyPaymentDiscounts(vendorId: string): Promise<number> {
+    try {
+      const vendor = await storage.getVendor(vendorId);
+      if (!vendor) return 0;
+
+      // Only capture discounts if both W9 and COI are received and not expired
+      const canCaptureDiscounts = vendor.w9Status === 'RECEIVED' && 
+                                 vendor.coiStatus === 'RECEIVED';
+
+      if (!canCaptureDiscounts) return 0;
+
+      // Get all unpaid bills for this vendor with available discounts
+      const bills = await storage.getBillsByVendorId(vendorId);
+      let totalCaptured = 0;
+
+      for (const bill of bills) {
+        if (!bill.discountCaptured && bill.discountAmount && bill.discountDueDate) {
+          // Check if we're still within discount period
+          const isWithinDiscountPeriod = new Date() <= bill.discountDueDate;
+          
+          if (isWithinDiscountPeriod) {
+            // Mark discount as captured
+            await storage.updateBill(bill.id, { discountCaptured: true });
+            const discountAmount = parseFloat(bill.discountAmount);
+            totalCaptured += discountAmount;
+
+            // Create timeline event
+            await storage.createTimelineEvent({
+              accountId: vendor.accountId,
+              vendorId: vendor.id,
+              eventType: 'discount_captured',
+              title: `Discount captured from ${vendor.name}`,
+              description: `$${discountAmount.toFixed(2)} early payment discount secured`,
+            });
+          }
+        }
+      }
+
+      return totalCaptured;
+    } catch (error) {
+      console.error('Error capturing early payment discounts:', error);
+      return 0;
+    }
+  }
+
   async getAuthUrl(accountId: string): Promise<string> {
     const clientId = process.env.QBO_CLIENT_ID;
     const redirectUri = process.env.QBO_REDIRECT_URI || `${process.env.REPLIT_DOMAINS?.split(',')[0]}/api/qbo/callback`;

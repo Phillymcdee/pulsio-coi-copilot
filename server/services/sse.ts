@@ -62,7 +62,7 @@ export class SSEService {
   }
 
   broadcast(event: SSEEvent): void {
-    for (const [accountId] of this.clients) {
+    for (const accountId of this.clients.keys()) {
       this.sendToClient(accountId, event);
     }
   }

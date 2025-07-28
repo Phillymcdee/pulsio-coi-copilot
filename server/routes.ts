@@ -277,6 +277,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       if (success) {
+        // Get vendor info for SSE event
+        const vendor = await storage.getVendor(id);
+        if (vendor) {
+          // Emit SSE event for reminder sent
+          eventBus.emit('reminder.sent', {
+            accountId: vendor.accountId,
+            vendorName: vendor.name,
+            docType: type,
+            channel,
+          });
+        }
+        
         res.json({ success: true, message: 'Reminder sent successfully' });
       } else {
         res.status(500).json({ message: 'Failed to send reminder' });
@@ -333,6 +345,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Update vendor status and extract expiry date for COI
       if (type === 'W9') {
         await storage.updateVendor(vendorId, { w9Status: 'RECEIVED' });
+        
+        // Check if we can now capture early payment discounts
+        const capturedAmount = await quickbooksService.captureEarlyPaymentDiscounts(vendorId);
+        if (capturedAmount > 0) {
+          eventBus.emit('discount.captured', {
+            accountId: vendor.accountId,
+            vendorName: vendor.name,
+            amount: capturedAmount,
+          });
+        }
       } else if (type === 'COI') {
         // Extract actual expiry date from COI document using OCR
         const { expiryDate: extractedDate, extractedText } = await ocrService.extractCOIInformation(file.buffer, file.mimetype);
@@ -355,6 +377,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
           coiStatus: 'RECEIVED',
           coiExpiry: expiryDate,
         });
+
+        // Check if we can now capture early payment discounts
+        const capturedAmount = await quickbooksService.captureEarlyPaymentDiscounts(vendorId);
+        if (capturedAmount > 0) {
+          eventBus.emit('discount.captured', {
+            accountId: vendor.accountId,
+            vendorName: vendor.name,
+            amount: capturedAmount,
+          });
+        }
 
         // Log the result for monitoring
         if (extractedDate) {
