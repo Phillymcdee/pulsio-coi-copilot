@@ -18,13 +18,13 @@ export default function Home() {
     return null;
   }
 
-  if (account && !account.isOnboardingComplete) {
+  if (account && !(account as any).isOnboardingComplete) {
     // Account exists but onboarding not complete
     navigate("/onboarding");
     return null;
   }
 
-  if (account && account.isOnboardingComplete) {
+  if (account && (account as any).isOnboardingComplete) {
     // Everything ready, go to dashboard
     navigate("/dashboard");
     return null;
