@@ -20,7 +20,8 @@ import {
   ChevronRight,
   ChevronLeft,
   Loader2,
-  Activity
+  Activity,
+  AlertTriangle
 } from "lucide-react";
 
 interface WizardProps {
@@ -279,14 +280,23 @@ export function Wizard({
               </div>
             </div>
             
-            <div className="flex items-center space-x-2 p-4 bg-amber-50 rounded-lg">
-              <Checkbox 
-                id="sendTest" 
-                {...register("sendTestReminder")}
-              />
-              <Label htmlFor="sendTest" className="text-sm">
-                Send test reminders to my vendors now (recommended)
-              </Label>
+            <div className="space-y-3 p-4 bg-blue-50 rounded-lg border border-blue-200">
+              <div className="flex items-start space-x-2">
+                <AlertTriangle className="w-5 h-5 text-blue-600 mt-0.5 flex-shrink-0" />
+                <div>
+                  <p className="text-sm font-medium text-blue-900">Ready to Start Collecting Documents?</p>
+                  <p className="text-sm text-blue-700">This will send real reminder emails to vendors who are missing W-9s or Certificates of Insurance.</p>
+                </div>
+              </div>
+              <div className="flex items-center space-x-2">
+                <Checkbox 
+                  id="sendFirst" 
+                  {...register("sendTestReminder")}
+                />
+                <Label htmlFor="sendFirst" className="text-sm">
+                  Yes, send initial reminders to vendors missing documents
+                </Label>
+              </div>
             </div>
           </div>
         );
