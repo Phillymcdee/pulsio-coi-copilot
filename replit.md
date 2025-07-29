@@ -5,7 +5,8 @@
 Pulsio is a full-stack web application that automates the collection of subcontractor W-9s and Certificates of Insurance (COIs) for trade-service contractors using QuickBooks Online integration. The system helps contractors capture early-payment discounts, avoid IRS penalties, and reduce administrative overhead by automatically tracking missing documents and sending reminders.
 
 **Current Status:** 92% complete with strong architectural foundations, UI, document storage, and OCR processing fully implemented.
-**MVP Target:** 1 week to functional release.
+**MVP Blocker:** QuickBooks vendor data sync needs completion to populate dashboard with real data.
+**MVP Target:** 1 week to functional release with real vendor workflow.
 **See:** `implementation_roadmap.md` for detailed completion plan.
 
 ## User Preferences
