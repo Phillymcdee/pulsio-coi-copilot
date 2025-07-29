@@ -1,7 +1,7 @@
 import { useQuery } from "@tanstack/react-query";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { AlertTriangle, ArrowRight } from "lucide-react";
+import { AlertTriangle, ArrowRight, CheckCircle } from "lucide-react";
 import { Link } from "wouter";
 
 export function MissingDocsCard() {
@@ -27,7 +27,7 @@ export function MissingDocsCard() {
     );
   }
 
-  const missingDocs = stats?.missingDocs || [];
+  const missingDocs = (stats as any)?.missingDocs || [];
 
   return (
     <Card>
@@ -44,7 +44,7 @@ export function MissingDocsCard() {
               <p className="text-sm">All documents collected!</p>
             </div>
           ) : (
-            missingDocs.slice(0, 3).map((doc, index) => (
+            missingDocs.slice(0, 3).map((doc: any, index: number) => (
               <div key={index} className="flex items-center justify-between p-3 bg-red-50 rounded-lg border border-red-200">
                 <div className="flex items-center space-x-3">
                   <div className="w-2 h-2 bg-red-500 rounded-full"></div>
