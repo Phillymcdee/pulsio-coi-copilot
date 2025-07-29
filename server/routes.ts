@@ -148,10 +148,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Start initial sync
       setTimeout(async () => {
         try {
+          console.log(`Starting initial QuickBooks sync for account: ${accountId}`);
           await quickbooksService.syncVendors(accountId as string);
           await quickbooksService.syncBills(accountId as string);
           
-          eventBus.emit('qbo.sync', { accountId, vendorCount: 0 });
+          // Get vendor count for event
+          const vendors = await storage.getVendorsByAccountId(accountId as string);
+          eventBus.emit('qbo.sync', { accountId, vendorCount: vendors.length });
+          
+          console.log('Initial QuickBooks sync completed successfully');
         } catch (error) {
           console.error('Error in initial QBO sync:', error);
         }
@@ -249,6 +254,45 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error("Error updating vendor:", error);
       res.status(500).json({ message: "Failed to update vendor" });
+    }
+  });
+
+  // Manual QuickBooks sync endpoint for testing
+  app.post('/api/qbo/sync', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const account = await storage.getAccountByUserId(userId);
+      
+      if (!account) {
+        return res.status(404).json({ message: 'Account not found' });
+      }
+
+      if (!account.qboAccessToken || !account.qboCompanyId) {
+        return res.status(400).json({ message: 'QuickBooks not connected' });
+      }
+
+      console.log(`Manual sync requested for account: ${account.companyName}`);
+      
+      // Run sync
+      await quickbooksService.syncVendors(account.id);
+      await quickbooksService.syncBills(account.id);
+      
+      // Get updated vendor count
+      const vendors = await storage.getVendorsByAccountId(account.id);
+      
+      // Emit SSE event
+      eventBus.emit('qbo.sync', { 
+        accountId: account.id, 
+        vendorCount: vendors.length 
+      });
+      
+      res.json({ 
+        message: 'Sync completed successfully',
+        vendorCount: vendors.length 
+      });
+    } catch (error) {
+      console.error("Error in manual QBO sync:", error);
+      res.status(500).json({ message: "Failed to sync QuickBooks data" });
     }
   });
 

@@ -141,7 +141,13 @@ export class QuickBooksService {
   }
 
   async syncVendors(accountId: string): Promise<void> {
-    const account = await storage.getAccountByUserId(accountId);
+    // Handle both userId and accountId - check if it's a userId first
+    let account = await storage.getAccountByUserId(accountId);
+    if (!account) {
+      // If not found by userId, try to get by accountId directly
+      const allAccounts = await storage.getAllAccounts();
+      account = allAccounts.find(acc => acc.id === accountId);
+    }
     if (!account?.qboAccessToken || !account.qboCompanyId) {
       throw new Error('QuickBooks not connected');
     }
@@ -177,19 +183,41 @@ export class QuickBooksService {
       const data = await response.json();
       const vendors: QBOVendor[] = data.QueryResponse?.Vendor || [];
 
+      console.log(`Found ${vendors.length} vendors in QuickBooks for account ${account.companyName}`);
+
       for (const qboVendor of vendors) {
         const existingVendor = await storage.getVendorByQboId(account.id, qboVendor.Id);
         
         if (!existingVendor) {
-          await storage.createVendor({
+          console.log(`Creating new vendor: ${qboVendor.Name}`);
+          const newVendor = await storage.createVendor({
             accountId: account.id,
             qboId: qboVendor.Id,
             name: qboVendor.Name,
             email: qboVendor.PrimaryEmailAddr?.Address || null,
             phone: qboVendor.PrimaryPhone?.FreeFormNumber || null,
           });
+          
+          // Send initial reminders for new vendors with email
+          if (newVendor.email) {
+            try {
+              const { emailService } = await import('./sendgrid');
+              const uploadLink = `${process.env.REPLIT_DOMAINS?.split(',')[0]}/upload/${newVendor.id}`;
+              
+              // Send W9 reminder
+              await emailService.sendW9Reminder(newVendor.id, uploadLink);
+              
+              // Send COI reminder
+              await emailService.sendCOIReminder(newVendor.id, uploadLink);
+              
+              console.log(`Sent initial reminders to new vendor: ${qboVendor.Name}`);
+            } catch (error) {
+              console.error(`Failed to send reminders to ${qboVendor.Name}:`, error);
+            }
+          }
         } else {
           // Update existing vendor
+          console.log(`Updating existing vendor: ${qboVendor.Name}`);
           await storage.updateVendor(existingVendor.id, {
             name: qboVendor.Name,
             email: qboVendor.PrimaryEmailAddr?.Address || null,
@@ -213,7 +241,13 @@ export class QuickBooksService {
   }
 
   async syncBills(accountId: string): Promise<void> {
-    const account = await storage.getAccountByUserId(accountId);
+    // Handle both userId and accountId - check if it's a userId first
+    let account = await storage.getAccountByUserId(accountId);
+    if (!account) {
+      // If not found by userId, try to get by accountId directly
+      const allAccounts = await storage.getAllAccounts();
+      account = allAccounts.find(acc => acc.id === accountId);
+    }
     if (!account?.qboAccessToken || !account.qboCompanyId) {
       throw new Error('QuickBooks not connected');
     }
@@ -236,6 +270,8 @@ export class QuickBooksService {
       const data = await response.json();
       const bills: QBOBill[] = data.QueryResponse?.Bill || [];
 
+      console.log(`Found ${bills.length} bills in QuickBooks for account ${account.companyName}`);
+
       for (const qboBill of bills) {
         const vendor = await storage.getVendorByQboId(account.id, qboBill.VendorRef.value);
         if (!vendor) continue;
@@ -243,6 +279,7 @@ export class QuickBooksService {
         const existingBill = await storage.getBillByQboId(account.id, qboBill.Id);
         
         if (!existingBill) {
+          console.log(`Creating new bill: ${qboBill.DocNumber || qboBill.Id} for vendor ${vendor.name}`);
           await storage.createBill({
             accountId: account.id,
             vendorId: vendor.id,
@@ -250,7 +287,7 @@ export class QuickBooksService {
             billNumber: qboBill.DocNumber || null,
             amount: qboBill.TotalAmt.toString(),
             dueDate: qboBill.DueDate ? new Date(qboBill.DueDate) : null,
-            // Assume 2% discount if paid within 10 days
+            // Assume 2% discount if paid within 10 days for demonstration
             discountPercent: '2.00',
             discountAmount: (qboBill.TotalAmt * 0.02).toString(),
             discountDueDate: qboBill.DueDate 
@@ -259,6 +296,14 @@ export class QuickBooksService {
           });
         }
       }
+
+      // Create timeline event for bills sync
+      await storage.createTimelineEvent({
+        accountId: account.id,
+        eventType: 'qbo_sync',
+        title: 'Bills sync completed',
+        description: `${bills.length} bills synced`,
+      });
 
     } catch (error) {
       console.error('Error syncing bills:', error);

@@ -56,8 +56,8 @@ export class CronService {
         if (account.qboAccessToken && account.qboCompanyId) {
           try {
             const vendorsBefore = await storage.getVendorsByAccountId(account.id);
-            await quickbooksService.syncVendors(account.userId);
-            await quickbooksService.syncBills(account.userId);
+            await quickbooksService.syncVendors(account.id); // Use account.id, not userId
+            await quickbooksService.syncBills(account.id);
             const vendorsAfter = await storage.getVendorsByAccountId(account.id);
             
             // Emit SSE event for sync completion
