@@ -2,7 +2,11 @@ import { storage } from '../storage';
 
 interface QBOVendor {
   Id: string;
-  Name: string;
+  Name?: string;
+  DisplayName?: string;
+  CompanyName?: string;
+  GivenName?: string;
+  FamilyName?: string;
   PrimaryEmailAddr?: { Address: string };
   PrimaryPhone?: { FreeFormNumber: string };
   Vendor1099?: boolean;
@@ -200,17 +204,22 @@ export class QuickBooksService {
         const existingVendor = await storage.getVendorByQboId(account.id, qboVendor.Id);
         
         if (!existingVendor) {
-          // Skip vendors with no name
-          if (!qboVendor.Name || qboVendor.Name.trim() === '') {
+          // Get the best available name (DisplayName is most reliable)
+          const vendorName = qboVendor.DisplayName || qboVendor.CompanyName || 
+                           (qboVendor.GivenName && qboVendor.FamilyName ? 
+                            `${qboVendor.GivenName} ${qboVendor.FamilyName}` : null) ||
+                           qboVendor.Name;
+          
+          if (!vendorName || vendorName.trim() === '') {
             console.log(`Skipping vendor with no name (ID: ${qboVendor.Id})`);
             continue;
           }
           
-          console.log(`Creating new vendor: ${qboVendor.Name}`);
+          console.log(`Creating new vendor: ${vendorName}`);
           const newVendor = await storage.createVendor({
             accountId: account.id,
             qboId: qboVendor.Id,
-            name: qboVendor.Name,
+            name: vendorName,
             email: qboVendor.PrimaryEmailAddr?.Address || null,
             phone: qboVendor.PrimaryPhone?.FreeFormNumber || null,
           });
@@ -227,17 +236,22 @@ export class QuickBooksService {
               // Send COI reminder
               await emailService.sendCOIReminder(newVendor.id, uploadLink);
               
-              console.log(`Sent initial reminders to new vendor: ${qboVendor.Name}`);
+              console.log(`Sent initial reminders to new vendor: ${vendorName}`);
             } catch (error) {
-              console.error(`Failed to send reminders to ${qboVendor.Name}:`, error);
+              console.error(`Failed to send reminders to ${vendorName}:`, error);
             }
           }
         } else {
           // Update existing vendor (only if name exists)
-          if (qboVendor.Name && qboVendor.Name.trim() !== '') {
-            console.log(`Updating existing vendor: ${qboVendor.Name}`);
+          const vendorName = qboVendor.DisplayName || qboVendor.CompanyName || 
+                           (qboVendor.GivenName && qboVendor.FamilyName ? 
+                            `${qboVendor.GivenName} ${qboVendor.FamilyName}` : null) ||
+                           qboVendor.Name;
+          
+          if (vendorName && vendorName.trim() !== '') {
+            console.log(`Updating existing vendor: ${vendorName}`);
             await storage.updateVendor(existingVendor.id, {
-              name: qboVendor.Name,
+              name: vendorName,
               email: qboVendor.PrimaryEmailAddr?.Address || null,
               phone: qboVendor.PrimaryPhone?.FreeFormNumber || null,
             });
