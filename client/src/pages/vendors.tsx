@@ -4,6 +4,7 @@ import { useToast } from "@/hooks/use-toast";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
 import { isUnauthorizedError } from "@/lib/authUtils";
+import { AddVendorModal } from "@/components/vendor/AddVendorModal";
 import { Navigation } from "@/components/layout/Navigation";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -27,6 +28,8 @@ export default function Vendors() {
   const { toast } = useToast();
   const { isAuthenticated, isLoading } = useAuth();
   const [searchTerm, setSearchTerm] = useState("");
+  const [isAddModalOpen, setIsAddModalOpen] = useState(false);
+  const queryClient = useQueryClient();
 
   // Redirect to login if not authenticated
   useEffect(() => {
@@ -46,6 +49,39 @@ export default function Vendors() {
   const { data: vendors, isLoading: vendorsLoading } = useQuery({
     queryKey: ["/api/vendors"],
     enabled: isAuthenticated,
+  });
+
+  const addVendorMutation = useMutation({
+    mutationFn: async (data: { name: string; email: string; phone?: string; notes?: string }) => {
+      const response = await apiRequest("POST", "/api/vendors", data);
+      return response.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/vendors"] });
+      setIsAddModalOpen(false);
+      toast({
+        title: "Vendor Added",
+        description: "New vendor has been added successfully.",
+      });
+    },
+    onError: (error) => {
+      if (isUnauthorizedError(error)) {
+        toast({
+          title: "Unauthorized",
+          description: "You are logged out. Logging in again...",
+          variant: "destructive",
+        });
+        setTimeout(() => {
+          window.location.href = "/api/login";
+        }, 500);
+        return;
+      }
+      toast({
+        title: "Error",
+        description: "Failed to add vendor. Please try again.",
+        variant: "destructive",
+      });
+    },
   });
 
   const getStatusColor = (status: string) => {
@@ -101,7 +137,10 @@ export default function Vendors() {
                 Manage your vendor documents and compliance status
               </p>
             </div>
-            <Button className="flex items-center space-x-2">
+            <Button 
+              className="flex items-center space-x-2"
+              onClick={() => setIsAddModalOpen(true)}
+            >
               <Plus className="w-4 h-4" />
               <span>Add Vendor</span>
             </Button>
@@ -150,7 +189,7 @@ export default function Vendors() {
                   : 'Add your first vendor to get started with document collection'}
               </p>
               {!searchTerm && (
-                <Button>
+                <Button onClick={() => setIsAddModalOpen(true)}>
                   <Plus className="w-4 h-4 mr-2" />
                   Add First Vendor
                 </Button>
@@ -223,6 +262,14 @@ export default function Vendors() {
             ))
           )}
         </div>
+
+        {/* Add Vendor Modal */}
+        <AddVendorModal
+          isOpen={isAddModalOpen}
+          onClose={() => setIsAddModalOpen(false)}
+          onAddVendor={addVendorMutation.mutate}
+          isAdding={addVendorMutation.isPending}
+        />
       </div>
     </div>
   );

@@ -188,6 +188,47 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  app.post('/api/vendors', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const account = await storage.getAccountByUserId(userId);
+      
+      if (!account) {
+        return res.status(404).json({ message: 'Account not found' });
+      }
+
+      const schema = z.object({
+        name: z.string().min(1),
+        email: z.string().email(),
+        phone: z.string().optional(),
+        notes: z.string().optional(),
+      });
+
+      const data = schema.parse(req.body);
+      const vendor = await storage.createVendor({
+        accountId: account.id,
+        qboId: null, // Manual vendors don't have QuickBooks ID
+        ...data,
+        w9Status: 'MISSING',
+        coiStatus: 'MISSING',
+      });
+
+      // Create timeline event
+      await storage.createTimelineEvent({
+        accountId: account.id,
+        vendorId: vendor.id,
+        eventType: 'vendor_added',
+        title: `New vendor added: ${vendor.name}`,
+        description: `Vendor added manually by user`,
+      });
+      
+      res.json(vendor);
+    } catch (error) {
+      console.error("Error creating vendor:", error);
+      res.status(500).json({ message: "Failed to create vendor" });
+    }
+  });
+
   // Public vendor info route for upload portal (no auth required)
   app.get('/api/vendors/:id/public', async (req, res) => {
     try {

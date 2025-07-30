@@ -68,7 +68,7 @@ export const reminderChannelEnum = pgEnum('reminder_channel', ['email', 'sms']);
 export const vendors = pgTable("vendors", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
   accountId: varchar("account_id").references(() => accounts.id).notNull(),
-  qboId: varchar("qbo_id").notNull(),
+  qboId: varchar("qbo_id"), // Nullable for manually added vendors
   name: varchar("name").notNull(),
   email: varchar("email"),
   phone: varchar("phone"),
