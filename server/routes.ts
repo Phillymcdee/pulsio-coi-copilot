@@ -163,7 +163,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }, 1000);
 
       // Redirect to success page
-      res.redirect(`${process.env.REPLIT_DOMAINS?.split(',')[0]}/onboarding?qbo=success`);
+      res.redirect(`https://${process.env.REPLIT_DOMAINS?.split(',')[0]}/onboarding?qbo=success`);
     } catch (error) {
       console.error("Error in QBO callback:", error);
       res.status(500).json({ message: "Failed to connect QuickBooks" });

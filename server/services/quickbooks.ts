@@ -189,6 +189,12 @@ export class QuickBooksService {
         const existingVendor = await storage.getVendorByQboId(account.id, qboVendor.Id);
         
         if (!existingVendor) {
+          // Skip vendors with no name
+          if (!qboVendor.Name || qboVendor.Name.trim() === '') {
+            console.log(`Skipping vendor with no name (ID: ${qboVendor.Id})`);
+            continue;
+          }
+          
           console.log(`Creating new vendor: ${qboVendor.Name}`);
           const newVendor = await storage.createVendor({
             accountId: account.id,
@@ -216,13 +222,15 @@ export class QuickBooksService {
             }
           }
         } else {
-          // Update existing vendor
-          console.log(`Updating existing vendor: ${qboVendor.Name}`);
-          await storage.updateVendor(existingVendor.id, {
-            name: qboVendor.Name,
-            email: qboVendor.PrimaryEmailAddr?.Address || null,
-            phone: qboVendor.PrimaryPhone?.FreeFormNumber || null,
-          });
+          // Update existing vendor (only if name exists)
+          if (qboVendor.Name && qboVendor.Name.trim() !== '') {
+            console.log(`Updating existing vendor: ${qboVendor.Name}`);
+            await storage.updateVendor(existingVendor.id, {
+              name: qboVendor.Name,
+              email: qboVendor.PrimaryEmailAddr?.Address || null,
+              phone: qboVendor.PrimaryPhone?.FreeFormNumber || null,
+            });
+          }
         }
       }
 
