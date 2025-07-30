@@ -154,7 +154,7 @@ export class QuickBooksService {
 
     try {
       const response = await fetch(
-        `${this.baseUrl}/v3/company/${account.qboCompanyId}/query?query=SELECT * FROM Vendor`,
+        `${this.baseUrl}/v3/company/${account.qboCompanyId}/query?query=SELECT * FROM Vendor WHERE Vendor1099='true'`,
         {
           headers: {
             'Authorization': `Bearer ${account.qboAccessToken}`,
