@@ -10,6 +10,7 @@ import Home from "@/pages/home";
 import Dashboard from "@/pages/dashboard";
 import Onboarding from "@/pages/onboarding";
 import VendorDetail from "@/pages/vendor-detail";
+import Vendors from "@/pages/vendors";
 import Settings from "@/pages/settings";
 import Subscribe from "@/pages/subscribe";
 import Upload from "@/pages/upload";
@@ -31,6 +32,7 @@ function Router() {
           <Route path="/" component={Home} />
           <Route path="/dashboard" component={Dashboard} />
           <Route path="/onboarding" component={Onboarding} />
+          <Route path="/vendors" component={Vendors} />
           <Route path="/vendors/:id" component={VendorDetail} />
           <Route path="/settings" component={Settings} />
           <Route path="/subscribe" component={Subscribe} />

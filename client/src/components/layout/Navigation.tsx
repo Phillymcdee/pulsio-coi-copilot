@@ -71,14 +71,14 @@ export function Navigation() {
                 const Icon = item.icon;
                 return (
                   <Link key={item.href} href={item.href}>
-                    <a className={`${
+                    <span className={`${
                       isActive(item.href)
                         ? "border-primary text-primary"
                         : "border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300"
-                    } inline-flex items-center px-1 pt-1 border-b-2 text-sm font-medium transition-colors`}>
+                    } inline-flex items-center px-1 pt-1 border-b-2 text-sm font-medium transition-colors cursor-pointer`}>
                       <Icon className="w-4 h-4 mr-2" />
                       {item.label}
-                    </a>
+                    </span>
                   </Link>
                 );
               })}
@@ -102,37 +102,41 @@ export function Navigation() {
               <DropdownMenuTrigger asChild>
                 <Button variant="ghost" className="flex items-center space-x-2 text-sm">
                   <Avatar className="h-8 w-8">
-                    <AvatarImage src={user?.profileImageUrl} alt={user?.firstName || "User"} />
+                    <AvatarImage src={(user as any)?.profileImageUrl} alt={(user as any)?.firstName || "User"} />
                     <AvatarFallback>
-                      {user?.firstName?.[0]}{user?.lastName?.[0]}
+                      {(user as any)?.firstName?.[0]}{(user as any)?.lastName?.[0]}
                     </AvatarFallback>
                   </Avatar>
                   <span className="hidden md:block text-gray-700 font-medium">
-                    {user?.firstName} {user?.lastName}
+                    {(user as any)?.firstName} {(user as any)?.lastName}
                   </span>
                   <ChevronDown className="w-4 h-4 text-gray-400" />
                 </Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end" className="w-56">
                 <div className="px-3 py-2 border-b">
-                  <p className="text-sm font-medium">{user?.firstName} {user?.lastName}</p>
-                  <p className="text-xs text-gray-500">{user?.email}</p>
-                  {account && (
-                    <p className="text-xs text-gray-500">{account.companyName}</p>
+                  <p className="text-sm font-medium">{(user as any)?.firstName} {(user as any)?.lastName}</p>
+                  <p className="text-xs text-gray-500">{(user as any)?.email}</p>
+                  {account && (account as any)?.companyName && (
+                    <p className="text-xs text-gray-500">{(account as any).companyName}</p>
                   )}
                 </div>
-                <Link href="/settings">
-                  <DropdownMenuItem>
-                    <Settings className="w-4 h-4 mr-2" />
-                    Account Settings
-                  </DropdownMenuItem>
-                </Link>
-                <Link href="/subscribe">
-                  <DropdownMenuItem>
-                    <BarChart3 className="w-4 h-4 mr-2" />
-                    Billing & Plans
-                  </DropdownMenuItem>
-                </Link>
+                <DropdownMenuItem asChild>
+                  <Link href="/settings">
+                    <span className="flex items-center w-full">
+                      <Settings className="w-4 h-4 mr-2" />
+                      Account Settings
+                    </span>
+                  </Link>
+                </DropdownMenuItem>
+                <DropdownMenuItem asChild>
+                  <Link href="/subscribe">
+                    <span className="flex items-center w-full">
+                      <BarChart3 className="w-4 h-4 mr-2" />
+                      Billing & Plans
+                    </span>
+                  </Link>
+                </DropdownMenuItem>
                 <DropdownMenuItem onClick={() => window.location.href = "/api/logout"}>
                   Sign Out
                 </DropdownMenuItem>
