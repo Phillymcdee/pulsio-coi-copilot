@@ -4,7 +4,7 @@ import { createServer, type Server } from "http";
 import { storage } from "./storage";
 import { setupAuth, isAuthenticated } from "./replitAuth";
 import { quickbooksService } from "./services/quickbooks";
-import { emailService } from "./services/sendgrid";
+import { emailService, sendEmail } from "./services/sendgrid";
 import { smsService } from "./services/twilio";
 import { stripeService } from "./services/stripe";
 import { sseService, eventBus } from "./services/sse";
@@ -293,6 +293,56 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error("Error in manual QBO sync:", error);
       res.status(500).json({ message: "Failed to sync QuickBooks data" });
+    }
+  });
+
+  // Test email endpoint for SendGrid verification
+  app.post('/api/test-email', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const user = await storage.getUser(userId);
+      
+      if (!user?.email) {
+        return res.status(400).json({ message: 'User email not found' });
+      }
+
+      const testEmail = {
+        to: user.email,
+        from: process.env.FROM_EMAIL || 'noreply@pulsio.app',
+        subject: 'Pulsio Email Configuration Test',
+        html: `
+          <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+            <h2 style="color: #2563eb;">SendGrid Configuration Test</h2>
+            <p>Hello ${user.firstName || 'there'},</p>
+            <p>This is a test email to verify that your SendGrid configuration is working correctly.</p>
+            <p>✅ If you're reading this, your email system is properly configured!</p>
+            <p>Best regards,<br>The Pulsio Team</p>
+          </div>
+        `,
+        text: `SendGrid Configuration Test\n\nHello ${user.firstName || 'there'},\n\nThis is a test email to verify that your SendGrid configuration is working correctly.\n\n✅ If you're reading this, your email system is properly configured!\n\nBest regards,\nThe Pulsio Team`
+      };
+
+      const success = await sendEmail(testEmail);
+      
+      if (success) {
+        res.json({ 
+          success: true, 
+          message: `Test email sent successfully to ${user.email}`,
+          emailSent: user.email
+        });
+      } else {
+        res.status(500).json({ 
+          success: false, 
+          message: 'Failed to send test email' 
+        });
+      }
+    } catch (error) {
+      console.error('Test email error:', error);
+      res.status(500).json({ 
+        success: false, 
+        message: 'Error sending test email',
+        error: error instanceof Error ? error.message : String(error)
+      });
     }
   });
 
