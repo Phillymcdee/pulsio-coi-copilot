@@ -32,10 +32,24 @@ export async function sendEmail(params: EmailParams): Promise<boolean> {
       emailData.html = params.html;
     }
     
-    await mailService.send(emailData);
+    console.log('📧 Attempting to send email via SendGrid:', {
+      to: params.to,
+      from: params.from,
+      subject: params.subject,
+      hasApiKey: !!process.env.SENDGRID_API_KEY
+    });
+    
+    const response = await mailService.send(emailData);
+    console.log('📧 SendGrid response:', response);
+    console.log('✅ Email sent successfully to:', params.to);
     return true;
   } catch (error) {
-    console.error('SendGrid email error:', error);
+    console.error('❌ SendGrid email error details:', {
+      error: error instanceof Error ? error.message : error,
+      stack: error instanceof Error ? error.stack : undefined,
+      emailTo: params.to,
+      emailFrom: params.from
+    });
     return false;
   }
 }
