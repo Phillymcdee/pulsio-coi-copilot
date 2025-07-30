@@ -66,7 +66,7 @@ export class QuickBooksService {
 
   async getAuthUrl(accountId: string): Promise<string> {
     const clientId = process.env.QBO_CLIENT_ID;
-    const redirectUri = process.env.QBO_REDIRECT_URI || `${process.env.REPLIT_DOMAINS?.split(',')[0]}/api/qbo/callback`;
+    const redirectUri = process.env.QBO_REDIRECT_URI || `https://${process.env.REPLIT_DOMAINS?.split(',')[0]}/api/qbo/callback`;
     
     const scope = 'com.intuit.quickbooks.accounting';
     const state = accountId; // Pass account ID as state for callback
@@ -83,7 +83,7 @@ export class QuickBooksService {
   async exchangeCodeForTokens(code: string, companyId: string): Promise<{ accessToken: string; refreshToken: string; companyId: string }> {
     const clientId = process.env.QBO_CLIENT_ID;
     const clientSecret = process.env.QBO_CLIENT_SECRET;
-    const redirectUri = process.env.QBO_REDIRECT_URI || `${process.env.REPLIT_DOMAINS?.split(',')[0]}/api/qbo/callback`;
+    const redirectUri = process.env.QBO_REDIRECT_URI || `https://${process.env.REPLIT_DOMAINS?.split(',')[0]}/api/qbo/callback`;
 
     const response = await fetch('https://oauth.platform.intuit.com/oauth2/v1/tokens/bearer', {
       method: 'POST',
