@@ -80,9 +80,13 @@ export class EmailService {
 
     const textContent = htmlContent.replace(/<[^>]*>/g, '').replace(/\n\s*\n/g, '\n\n');
 
+    // Use custom fromName if set, otherwise use company name
+    const senderName = account.fromName || account.companyName;
+    const fromAddress = `${senderName} <${this.defaultFromEmail}>`;
+
     const success = await sendEmail({
       to: vendor.email,
-      from: this.defaultFromEmail,
+      from: fromAddress,
       subject: `W-9 Form Required - ${account.companyName}`,
       html: htmlContent,
       text: textContent,
@@ -151,9 +155,13 @@ export class EmailService {
 
     const textContent = htmlContent.replace(/<[^>]*>/g, '').replace(/\n\s*\n/g, '\n\n');
 
+    // Use custom fromName if set, otherwise use company name  
+    const senderName = account.fromName || account.companyName;
+    const fromAddress = `${senderName} <${this.defaultFromEmail}>`;
+
     const success = await sendEmail({
       to: vendor.email,
-      from: this.defaultFromEmail,
+      from: fromAddress,
       subject: `Certificate of Insurance Required - ${account.companyName}`,
       html: htmlContent,
       text: textContent,
@@ -218,7 +226,7 @@ export class EmailService {
 
     return await sendEmail({
       to: user.email,
-      from: this.defaultFromEmail,
+      from: `Pulsio Team <${this.defaultFromEmail}>`,
       subject: 'Welcome to Pulsio - Your Document Collection is Now Automated!',
       html: htmlContent,
       text: textContent,
@@ -255,9 +263,13 @@ export class EmailService {
 
     const textContent = htmlContent.replace(/<[^>]*>/g, '').replace(/\n\s*\n/g, '\n\n');
 
+    // Use custom fromName if set, otherwise use company name
+    const senderName = account.fromName || account.companyName;
+    const fromAddress = `${senderName} <${this.defaultFromEmail}>`;
+
     const success = await sendEmail({
       to: vendor.email,
-      from: this.defaultFromEmail,
+      from: fromAddress,
       subject: `COI Expiring in ${daysUntilExpiry} Days - ${account.companyName}`,
       html: htmlContent,
       text: textContent,

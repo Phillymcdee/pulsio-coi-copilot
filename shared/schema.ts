@@ -44,6 +44,7 @@ export const accounts = pgTable("accounts", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
   userId: varchar("user_id").references(() => users.id).notNull(),
   companyName: varchar("company_name").notNull(),
+  fromName: varchar("from_name"), // Custom sender display name for emails
   qboCompanyId: varchar("qbo_company_id"),
   qboAccessToken: text("qbo_access_token"),
   qboRefreshToken: text("qbo_refresh_token"),
