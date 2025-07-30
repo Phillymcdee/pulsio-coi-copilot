@@ -49,7 +49,7 @@ export class EmailService {
       throw new Error('Vendor email not found');
     }
 
-    const account = await storage.getAccountByUserId(vendor.accountId);
+    const account = await storage.getAccount(vendor.accountId);
     if (!account) {
       throw new Error('Account not found');
     }
@@ -124,7 +124,7 @@ export class EmailService {
       throw new Error('Vendor email not found');
     }
 
-    const account = await storage.getAccountByUserId(vendor.accountId);
+    const account = await storage.getAccount(vendor.accountId);
     if (!account) {
       throw new Error('Account not found');
     }
