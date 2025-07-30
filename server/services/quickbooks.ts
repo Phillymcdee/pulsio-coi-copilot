@@ -153,8 +153,11 @@ export class QuickBooksService {
     }
 
     try {
+      const query = "SELECT * FROM Vendor WHERE Vendor1099='true'";
+      console.log(`Querying QuickBooks with: ${query}`);
+      
       const response = await fetch(
-        `${this.baseUrl}/v3/company/${account.qboCompanyId}/query?query=SELECT * FROM Vendor WHERE Vendor1099='true'`,
+        `${this.baseUrl}/v3/company/${account.qboCompanyId}/query?query=${encodeURIComponent(query)}`,
         {
           headers: {
             'Authorization': `Bearer ${account.qboAccessToken}`,
@@ -164,9 +167,13 @@ export class QuickBooksService {
       );
 
       if (!response.ok) {
+        const errorText = await response.text();
+        console.error(`QuickBooks API error: ${response.status} - ${errorText}`);
+        
         if (response.status === 401) {
           // Try to refresh token
           if (account.qboRefreshToken) {
+            console.log('Token expired, refreshing...');
             const tokens = await this.refreshAccessToken(account.qboRefreshToken);
             await storage.updateAccount(account.id, {
               qboAccessToken: tokens.accessToken,
@@ -177,7 +184,7 @@ export class QuickBooksService {
             return this.syncVendors(accountId);
           }
         }
-        throw new Error('Failed to sync vendors from QuickBooks');
+        throw new Error(`Failed to sync vendors from QuickBooks: ${response.status} - ${errorText}`);
       }
 
       const data = await response.json();
