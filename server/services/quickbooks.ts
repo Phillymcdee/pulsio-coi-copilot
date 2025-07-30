@@ -5,6 +5,7 @@ interface QBOVendor {
   Name: string;
   PrimaryEmailAddr?: { Address: string };
   PrimaryPhone?: { FreeFormNumber: string };
+  Vendor1099?: boolean;
 }
 
 interface QBOBill {
@@ -153,7 +154,7 @@ export class QuickBooksService {
     }
 
     try {
-      const query = "SELECT * FROM Vendor WHERE Vendor1099='true'";
+      const query = "SELECT * FROM Vendor";
       console.log(`Querying QuickBooks with: ${query}`);
       
       const response = await fetch(
@@ -188,9 +189,12 @@ export class QuickBooksService {
       }
 
       const data = await response.json();
-      const vendors: QBOVendor[] = data.QueryResponse?.Vendor || [];
+      const allVendors: QBOVendor[] = data.QueryResponse?.Vendor || [];
+      
+      // Filter for 1099 contractors only
+      const vendors = allVendors.filter(vendor => vendor.Vendor1099 === true);
 
-      console.log(`Found ${vendors.length} vendors in QuickBooks for account ${account.companyName}`);
+      console.log(`Found ${allVendors.length} total vendors, ${vendors.length} are 1099 contractors in QuickBooks for account ${account.companyName}`);
 
       for (const qboVendor of vendors) {
         const existingVendor = await storage.getVendorByQboId(account.id, qboVendor.Id);
