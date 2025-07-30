@@ -53,11 +53,14 @@ export function MissingDocsCard() {
                     <div className="text-sm text-gray-600">{doc.docType} Missing</div>
                   </div>
                 </div>
-                <Link href={`/vendors/${doc.vendorId}`}>
-                  <Button variant="ghost" size="sm" className="text-primary hover:text-primary-dark">
-                    Remind
-                  </Button>
-                </Link>
+                <Button 
+                  variant="ghost" 
+                  size="sm" 
+                  className="text-primary hover:text-primary-dark"
+                  onClick={() => window.location.href = `/vendors/${doc.vendorId}`}
+                >
+                  Remind
+                </Button>
               </div>
             ))
           )}
@@ -66,9 +69,9 @@ export function MissingDocsCard() {
         {missingDocs.length > 3 && (
           <div className="mt-4 pt-4 border-t border-gray-200">
             <Link href="/vendors">
-              <a className="text-primary hover:text-primary-dark text-sm font-medium">
+              <span className="text-primary hover:text-primary-dark text-sm font-medium cursor-pointer">
                 View all vendors <ArrowRight className="w-4 h-4 inline ml-1" />
-              </a>
+              </span>
             </Link>
           </div>
         )}

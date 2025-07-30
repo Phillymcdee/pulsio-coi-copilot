@@ -4,6 +4,7 @@ import { useToast } from "@/hooks/use-toast";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
 import { isUnauthorizedError } from "@/lib/authUtils";
+import { formatDistanceToNow } from "date-fns";
 import { Navigation } from "@/components/layout/Navigation";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -68,10 +69,10 @@ export default function Settings() {
   useEffect(() => {
     if (account) {
       reset({
-        companyName: account.companyName || '',
-        reminderCadence: account.reminderCadence || '0 9 * * *',
-        emailTemplate: account.emailTemplate || '',
-        smsTemplate: account.smsTemplate || '',
+        companyName: (account as any).companyName || '',
+        reminderCadence: (account as any).reminderCadence || '0 9 * * *',
+        emailTemplate: (account as any).emailTemplate || '',
+        smsTemplate: (account as any).smsTemplate || '',
       });
     }
   }, [account, reset]);
@@ -361,11 +362,11 @@ export default function Settings() {
                 <div>
                   <div className="font-medium">Connection Status</div>
                   <div className="text-sm text-gray-600">
-                    {account?.qboAccessToken ? 'Connected and syncing' : 'Not connected'}
+                    {(account as any)?.qboAccessToken ? 'Connected and syncing' : 'Not connected'}
                   </div>
                 </div>
                 <div className="flex items-center space-x-2">
-                  {account?.qboAccessToken ? (
+                  {(account as any)?.qboAccessToken ? (
                     <Badge variant="secondary" className="text-green-700 bg-green-50">
                       <CheckCircle className="w-3 h-3 mr-1" />
                       Connected
@@ -378,7 +379,7 @@ export default function Settings() {
                 </div>
               </div>
               
-              {account?.qboAccessToken && (
+              {(account as any)?.qboAccessToken && (
                 <div className="flex items-center space-x-2">
                   <Button
                     variant="outline"
@@ -394,7 +395,7 @@ export default function Settings() {
                     Sync Now
                   </Button>
                   <p className="text-sm text-gray-500">
-                    Last sync: {account.updatedAt ? formatDistanceToNow(new Date(account.updatedAt), { addSuffix: true }) : 'Never'}
+                    Last sync: {(account as any)?.updatedAt ? formatDistanceToNow(new Date((account as any).updatedAt), { addSuffix: true }) : 'Never'}
                   </p>
                 </div>
               )}
@@ -414,11 +415,11 @@ export default function Settings() {
                 <div>
                   <div className="font-medium">Current Plan</div>
                   <div className="text-sm text-gray-600">
-                    {account?.plan || 'Free Trial'} Plan
+                    {(account as any)?.plan || 'Free Trial'} Plan
                   </div>
                 </div>
                 <Badge variant="secondary">
-                  {account?.plan || 'Trial'}
+                  {(account as any)?.plan || 'Trial'}
                 </Badge>
               </div>
               
