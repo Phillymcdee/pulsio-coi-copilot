@@ -285,8 +285,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const { id } = req.params;
       const schema = z.object({
         name: z.string().min(1).optional(),
-        email: z.string().email().optional(),
-        phone: z.string().optional(),
+        email: z.string().email().or(z.literal('')).nullable().optional(),
+        phone: z.string().nullable().optional(),
         notes: z.string().optional(),
         isExempt: z.boolean().optional(),
       });
@@ -295,7 +295,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       // Set override flags when user manually edits QB-synced fields
       const updateData: any = { ...data };
-      if (data.name !== undefined) updateData.nameOverride = true;
+      if (data.name !== undefined && data.name !== null) updateData.nameOverride = true;
       if (data.email !== undefined) updateData.emailOverride = true;
       if (data.phone !== undefined) updateData.phoneOverride = true;
       

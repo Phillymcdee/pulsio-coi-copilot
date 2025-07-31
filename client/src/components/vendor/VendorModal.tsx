@@ -75,8 +75,8 @@ export function VendorModal({
   const handleSaveEdit = () => {
     onUpdateVendor({
       name: editForm.name,
-      email: editForm.email,
-      phone: editForm.phone,
+      email: editForm.email.trim() || null,
+      phone: editForm.phone.trim() || null,
     });
     setIsEditing(false);
   };
@@ -231,7 +231,7 @@ export function VendorModal({
                 <Button
                   size="sm"
                   onClick={handleSaveEdit}
-                  disabled={isUpdating || !editForm.name || !editForm.email}
+                  disabled={isUpdating || !editForm.name}
                 >
                   {isUpdating && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
                   <Save className="w-4 h-4 mr-2" />
