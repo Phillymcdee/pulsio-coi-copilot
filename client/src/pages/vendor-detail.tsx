@@ -39,7 +39,7 @@ export default function VendorDetail() {
   });
 
   const updateVendorMutation = useMutation({
-    mutationFn: async (data: { notes?: string; isExempt?: boolean }) => {
+    mutationFn: async (data: { name?: string; email?: string; phone?: string; notes?: string; isExempt?: boolean }) => {
       const response = await apiRequest("PATCH", `/api/vendors/${vendorId}`, data);
       return response.json();
     },

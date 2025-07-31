@@ -284,12 +284,29 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const { id } = req.params;
       const schema = z.object({
+        name: z.string().min(1).optional(),
+        email: z.string().email().optional(),
+        phone: z.string().optional(),
         notes: z.string().optional(),
         isExempt: z.boolean().optional(),
       });
 
       const data = schema.parse(req.body);
       const vendor = await storage.updateVendor(id, data);
+      
+      // Create timeline event if basic info was updated
+      if (data.name || data.email || data.phone) {
+        const account = await storage.getAccountByUserId(req.user.claims.sub);
+        if (account) {
+          await storage.createTimelineEvent({
+            accountId: account.id,
+            vendorId: vendor.id,
+            eventType: 'vendor_updated',
+            title: `Vendor updated: ${vendor.name}`,
+            description: `Vendor information updated by user`,
+          });
+        }
+      }
       
       res.json(vendor);
     } catch (error) {

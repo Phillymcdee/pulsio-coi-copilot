@@ -1,8 +1,10 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Textarea } from "@/components/ui/textarea";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { Separator } from "@/components/ui/separator";
 import { 
   Building2, 
@@ -15,13 +17,15 @@ import {
   X,
   Loader2,
   CheckCircle,
-  AlertCircle
+  AlertCircle,
+  Edit,
+  Save
 } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
 
 interface VendorModalProps {
   vendor: any;
-  onUpdateVendor: (data: { notes?: string; isExempt?: boolean }) => void;
+  onUpdateVendor: (data: { name?: string; email?: string; phone?: string; notes?: string; isExempt?: boolean }) => void;
   onSendReminder: (data: { type: 'W9' | 'COI'; channel: 'email' | 'sms' }) => void;
   isUpdating: boolean;
   isSendingReminder: boolean;
@@ -40,14 +44,50 @@ export function VendorModal({
 }: VendorModalProps) {
   const [notes, setNotes] = useState(vendor?.notes || '');
   const [lastSavedNotes, setLastSavedNotes] = useState(vendor?.notes || '');
+  const [isEditing, setIsEditing] = useState(false);
+  const [editForm, setEditForm] = useState({
+    name: vendor?.name || '',
+    email: vendor?.email || '',
+    phone: vendor?.phone || '',
+  });
 
   if (!isOpen || !vendor) return null;
+
+  // Update form when vendor changes
+  useEffect(() => {
+    setEditForm({
+      name: vendor.name || '',
+      email: vendor.email || '',
+      phone: vendor.phone || '',
+    });
+    setNotes(vendor.notes || '');
+    setLastSavedNotes(vendor.notes || '');
+    setIsEditing(false);
+  }, [vendor]);
 
   const handleNotesBlur = () => {
     if (notes !== lastSavedNotes) {
       onUpdateVendor({ notes });
       setLastSavedNotes(notes);
     }
+  };
+
+  const handleSaveEdit = () => {
+    onUpdateVendor({
+      name: editForm.name,
+      email: editForm.email,
+      phone: editForm.phone,
+    });
+    setIsEditing(false);
+  };
+
+  const handleCancelEdit = () => {
+    setEditForm({
+      name: vendor.name || '',
+      email: vendor.email || '',
+      phone: vendor.phone || '',
+    });
+    setIsEditing(false);
   };
 
   const getStatusColor = (status: string) => {
@@ -81,31 +121,107 @@ export function VendorModal({
       <div className="relative top-10 mx-auto p-0 border w-full max-w-4xl shadow-lg rounded-lg bg-white m-4">
         {/* Header */}
         <div className="flex items-center justify-between p-6 border-b border-gray-200">
-          <div className="flex items-center space-x-4">
+          <div className="flex items-center space-x-4 flex-1">
             <div className="h-12 w-12 bg-primary/10 rounded-lg flex items-center justify-center">
               <Building2 className="w-6 h-6 text-primary" />
             </div>
-            <div>
-              <h3 className="text-lg font-semibold text-gray-900">{vendor.name}</h3>
-              <div className="flex items-center space-x-4 text-sm text-gray-600">
-                {vendor.email && (
-                  <div className="flex items-center space-x-1">
-                    <Mail className="w-4 h-4" />
-                    <span>{vendor.email}</span>
+            <div className="flex-1">
+              {isEditing ? (
+                <div className="space-y-3">
+                  <div>
+                    <Label htmlFor="vendor-name" className="text-sm font-medium">Company Name</Label>
+                    <Input
+                      id="vendor-name"
+                      value={editForm.name}
+                      onChange={(e) => setEditForm({ ...editForm, name: e.target.value })}
+                      className="mt-1"
+                    />
                   </div>
-                )}
-                {vendor.phone && (
-                  <div className="flex items-center space-x-1">
-                    <Phone className="w-4 h-4" />
-                    <span>{vendor.phone}</span>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                    <div>
+                      <Label htmlFor="vendor-email" className="text-sm font-medium">Email</Label>
+                      <Input
+                        id="vendor-email"
+                        type="email"
+                        value={editForm.email}
+                        onChange={(e) => setEditForm({ ...editForm, email: e.target.value })}
+                        className="mt-1"
+                      />
+                    </div>
+                    <div>
+                      <Label htmlFor="vendor-phone" className="text-sm font-medium">Phone</Label>
+                      <Input
+                        id="vendor-phone"
+                        type="tel"
+                        value={editForm.phone}
+                        onChange={(e) => setEditForm({ ...editForm, phone: e.target.value })}
+                        placeholder="(555) 123-4567"
+                        className="mt-1"
+                      />
+                    </div>
                   </div>
-                )}
-              </div>
+                </div>
+              ) : (
+                <div>
+                  <h3 className="text-lg font-semibold text-gray-900">{vendor.name}</h3>
+                  <div className="flex items-center space-x-4 text-sm text-gray-600">
+                    {vendor.email && (
+                      <div className="flex items-center space-x-1">
+                        <Mail className="w-4 h-4" />
+                        <span>{vendor.email}</span>
+                      </div>
+                    )}
+                    {vendor.phone && (
+                      <div className="flex items-center space-x-1">
+                        <Phone className="w-4 h-4" />
+                        <span>{vendor.phone}</span>
+                      </div>
+                    )}
+                    {!vendor.phone && (
+                      <span className="text-xs text-amber-600 bg-amber-50 px-2 py-1 rounded">
+                        No phone number - SMS unavailable
+                      </span>
+                    )}
+                  </div>
+                </div>
+              )}
             </div>
           </div>
-          <Button variant="ghost" size="icon" onClick={onClose}>
-            <X className="w-5 h-5" />
-          </Button>
+          <div className="flex items-center space-x-2">
+            {isEditing ? (
+              <>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={handleCancelEdit}
+                  disabled={isUpdating}
+                >
+                  Cancel
+                </Button>
+                <Button
+                  size="sm"
+                  onClick={handleSaveEdit}
+                  disabled={isUpdating || !editForm.name || !editForm.email}
+                >
+                  {isUpdating && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
+                  <Save className="w-4 h-4 mr-2" />
+                  Save
+                </Button>
+              </>
+            ) : (
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => setIsEditing(true)}
+              >
+                <Edit className="w-4 h-4 mr-2" />
+                Edit
+              </Button>
+            )}
+            <Button variant="ghost" size="icon" onClick={onClose}>
+              <X className="w-5 h-5" />
+            </Button>
+          </div>
         </div>
         
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 p-6">
