@@ -130,6 +130,15 @@ class OCRService {
         
         // Expiration table patterns
         /expiration[\s\S]*?(\d{1,2}[\/\-]\d{1,2}[\/\-]\d{4})/gi,
+        
+        // ACORD 25 table patterns - two dates side by side (effective and expiry)
+        /(\d{1,2}[\/\-]\d{1,2}[\/\-]\d{4})\s+(\d{1,2}[\/\-]\d{1,2}[\/\-]\d{4})/gi,
+        
+        // General liability/auto liability specific ACORD patterns
+        /(?:general liability|automobile liability|workers compensation)[\s\S]*?(\d{1,2}[\/\-]\d{1,2}[\/\-]\d{4})\s+(\d{1,2}[\/\-]\d{1,2}[\/\-]\d{4})/gi,
+        
+        // Policy EXP column patterns
+        /policy\s+exp[\s\S]*?(\d{1,2}[\/\-]\d{1,2}[\/\-]\d{4})/gi,
       ];
 
       const dates: Date[] = [];
@@ -138,10 +147,22 @@ class OCRService {
       for (const pattern of patterns) {
         const matches = Array.from(documentText.matchAll(pattern));
         for (const match of matches) {
-          const dateStr = match[1];
-          const parsedDate = this.parseDate(dateStr);
-          if (parsedDate && this.isValidCOIDate(parsedDate)) {
-            dates.push(parsedDate);
+          // Handle patterns with multiple date groups (ACORD table format)
+          if (match.length > 2) {
+            // For ACORD format: effective date (match[1]) and expiry date (match[2])
+            // We want the expiry date (second date)
+            const expiryDateStr = match[2];
+            const parsedDate = this.parseDate(expiryDateStr);
+            if (parsedDate && this.isValidCOIDate(parsedDate)) {
+              dates.push(parsedDate);
+            }
+          } else {
+            // Standard single date patterns
+            const dateStr = match[1];
+            const parsedDate = this.parseDate(dateStr);
+            if (parsedDate && this.isValidCOIDate(parsedDate)) {
+              dates.push(parsedDate);
+            }
           }
         }
       }
