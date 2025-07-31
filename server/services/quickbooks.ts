@@ -222,6 +222,11 @@ export class QuickBooksService {
             name: vendorName,
             email: qboVendor.PrimaryEmailAddr?.Address || null,
             phone: qboVendor.PrimaryPhone?.FreeFormNumber || null,
+            // Store QB source data
+            qboName: vendorName,
+            qboEmail: qboVendor.PrimaryEmailAddr?.Address || null,
+            qboPhone: qboVendor.PrimaryPhone?.FreeFormNumber || null,
+            qboLastSyncAt: new Date(),
           });
           
           // Send initial reminders for new vendors with email
@@ -250,11 +255,27 @@ export class QuickBooksService {
           
           if (vendorName && vendorName.trim() !== '') {
             console.log(`Updating existing vendor: ${vendorName}`);
-            await storage.updateVendor(existingVendor.id, {
-              name: vendorName,
-              email: qboVendor.PrimaryEmailAddr?.Address || null,
-              phone: qboVendor.PrimaryPhone?.FreeFormNumber || null,
-            });
+            
+            // Smart update: only update fields that haven't been manually overridden
+            const updateData: any = {
+              qboName: vendorName,
+              qboEmail: qboVendor.PrimaryEmailAddr?.Address || null,
+              qboPhone: qboVendor.PrimaryPhone?.FreeFormNumber || null,
+              qboLastSyncAt: new Date(),
+            };
+            
+            // Update active fields only if not overridden by user
+            if (!existingVendor.nameOverride) {
+              updateData.name = vendorName;
+            }
+            if (!existingVendor.emailOverride) {
+              updateData.email = qboVendor.PrimaryEmailAddr?.Address || null;
+            }
+            if (!existingVendor.phoneOverride) {
+              updateData.phone = qboVendor.PrimaryPhone?.FreeFormNumber || null;
+            }
+            
+            await storage.updateVendor(existingVendor.id, updateData);
           }
         }
       }

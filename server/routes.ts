@@ -292,7 +292,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
       });
 
       const data = schema.parse(req.body);
-      const vendor = await storage.updateVendor(id, data);
+      
+      // Set override flags when user manually edits QB-synced fields
+      const updateData: any = { ...data };
+      if (data.name !== undefined) updateData.nameOverride = true;
+      if (data.email !== undefined) updateData.emailOverride = true;
+      if (data.phone !== undefined) updateData.phoneOverride = true;
+      
+      const vendor = await storage.updateVendor(id, updateData);
       
       // Create timeline event if basic info was updated
       if (data.name || data.email || data.phone) {
@@ -303,7 +310,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
             vendorId: vendor.id,
             eventType: 'vendor_updated',
             title: `Vendor updated: ${vendor.name}`,
-            description: `Vendor information updated by user`,
+            description: `User manually updated vendor information (will override QB sync)`,
           });
         }
       }
@@ -312,6 +319,58 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error("Error updating vendor:", error);
       res.status(500).json({ message: "Failed to update vendor" });
+    }
+  });
+
+  // Revert vendor fields to QuickBooks data
+  app.post('/api/vendors/:id/revert', isAuthenticated, async (req: any, res) => {
+    try {
+      const { id } = req.params;
+      const { fields } = req.body; // Array of fields to revert: ['name', 'email', 'phone']
+      
+      const vendor = await storage.getVendor(id);
+      if (!vendor) {
+        return res.status(404).json({ message: 'Vendor not found' });
+      }
+      
+      if (!vendor.qboId) {
+        return res.status(400).json({ message: 'Vendor is not synced from QuickBooks' });
+      }
+      
+      const updateData: any = {};
+      
+      // Revert specified fields to QuickBooks data
+      if (fields.includes('name') && vendor.qboName) {
+        updateData.name = vendor.qboName;
+        updateData.nameOverride = false;
+      }
+      if (fields.includes('email') && vendor.qboEmail) {
+        updateData.email = vendor.qboEmail;
+        updateData.emailOverride = false;
+      }
+      if (fields.includes('phone') && vendor.qboPhone) {
+        updateData.phone = vendor.qboPhone;
+        updateData.phoneOverride = false;
+      }
+      
+      const updatedVendor = await storage.updateVendor(id, updateData);
+      
+      // Create timeline event
+      const account = await storage.getAccountByUserId(req.user.claims.sub);
+      if (account) {
+        await storage.createTimelineEvent({
+          accountId: account.id,
+          vendorId: vendor.id,
+          eventType: 'vendor_reverted',
+          title: `Vendor data reverted: ${vendor.name}`,
+          description: `Reverted ${fields.join(', ')} to QuickBooks data`,
+        });
+      }
+      
+      res.json(updatedVendor);
+    } catch (error) {
+      console.error("Error reverting vendor:", error);
+      res.status(500).json({ message: "Failed to revert vendor data" });
     }
   });
 

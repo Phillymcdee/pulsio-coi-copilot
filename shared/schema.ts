@@ -72,6 +72,16 @@ export const vendors = pgTable("vendors", {
   name: varchar("name").notNull(),
   email: varchar("email"),
   phone: varchar("phone"),
+  // QuickBooks source fields (automatically synced)
+  qboName: varchar("qbo_name"), // Name from QuickBooks
+  qboEmail: varchar("qbo_email"), // Email from QuickBooks  
+  qboPhone: varchar("qbo_phone"), // Phone from QuickBooks
+  qboLastSyncAt: timestamp("qbo_last_sync_at"), // Last QB sync timestamp
+  // User override flags
+  nameOverride: boolean("name_override").default(false),
+  emailOverride: boolean("email_override").default(false), 
+  phoneOverride: boolean("phone_override").default(false),
+  // Compliance-specific fields (app managed)
   w9Status: docStateEnum("w9_status").default('MISSING'),
   coiStatus: docStateEnum("coi_status").default('MISSING'),
   coiExpiry: timestamp("coi_expiry"),
