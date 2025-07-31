@@ -293,11 +293,23 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       const data = schema.parse(req.body);
       
-      // Set override flags when user manually edits QB-synced fields
+      // Get current vendor to compare against QB source data
+      const currentVendor = await storage.getVendor(id);
+      if (!currentVendor) {
+        return res.status(404).json({ message: 'Vendor not found' });
+      }
+      
+      // Set override flags only when user edits differ from QB source data
       const updateData: any = { ...data };
-      if (data.name !== undefined && data.name !== null) updateData.nameOverride = true;
-      if (data.email !== undefined) updateData.emailOverride = true;
-      if (data.phone !== undefined) updateData.phoneOverride = true;
+      if (data.name !== undefined && currentVendor.qboId) {
+        updateData.nameOverride = data.name !== currentVendor.qboName;
+      }
+      if (data.email !== undefined && currentVendor.qboId) {
+        updateData.emailOverride = data.email !== currentVendor.qboEmail;
+      }
+      if (data.phone !== undefined && currentVendor.qboId) {
+        updateData.phoneOverride = data.phone !== currentVendor.qboPhone;
+      }
       
       const vendor = await storage.updateVendor(id, updateData);
       
