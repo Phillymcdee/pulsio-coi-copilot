@@ -247,27 +247,53 @@ export function VendorModal({
                 <h4 className="font-medium text-gray-900 mb-3">Quick Actions</h4>
                 <div className="space-y-2">
                   {vendor.w9Status === 'MISSING' && (
-                    <Button
-                      variant="ghost"
-                      className="w-full justify-start text-primary hover:bg-primary/5"
-                      onClick={() => onSendReminder({ type: 'W9', channel: 'email' })}
-                      disabled={isSendingReminder}
-                    >
-                      <Send className="w-4 h-4 mr-2" />
-                      Resend W-9 Reminder
-                    </Button>
+                    <>
+                      <Button
+                        variant="ghost"
+                        className="w-full justify-start text-primary hover:bg-primary/5"
+                        onClick={() => onSendReminder({ type: 'W9', channel: 'email' })}
+                        disabled={isSendingReminder}
+                      >
+                        <Mail className="w-4 h-4 mr-2" />
+                        Resend W-9 Reminder (Email)
+                      </Button>
+                      {vendor.phone && (
+                        <Button
+                          variant="ghost"
+                          className="w-full justify-start text-green-600 hover:bg-green-50"
+                          onClick={() => onSendReminder({ type: 'W9', channel: 'sms' })}
+                          disabled={isSendingReminder}
+                        >
+                          <Phone className="w-4 h-4 mr-2" />
+                          Send W-9 Reminder (SMS)
+                        </Button>
+                      )}
+                    </>
                   )}
                   
                   {(vendor.coiStatus === 'MISSING' || vendor.coiStatus === 'EXPIRED') && (
-                    <Button
-                      variant="ghost"
-                      className="w-full justify-start text-primary hover:bg-primary/5"
-                      onClick={() => onSendReminder({ type: 'COI', channel: 'email' })}
-                      disabled={isSendingReminder}
-                    >
-                      <Send className="w-4 h-4 mr-2" />
-                      Resend COI Reminder
-                    </Button>
+                    <>
+                      <Button
+                        variant="ghost"
+                        className="w-full justify-start text-primary hover:bg-primary/5"
+                        onClick={() => onSendReminder({ type: 'COI', channel: 'email' })}
+                        disabled={isSendingReminder}
+                      >
+                        <Mail className="w-4 h-4 mr-2" />
+                        Resend COI Reminder (Email)
+                      </Button>
+                      {vendor.phone && (
+                        <Button
+                          variant="ghost"
+                          className="w-full justify-start text-green-600 hover:bg-green-50"
+                          onClick={() => onSendReminder({ type: 'COI', channel: 'sms' })}
+                          disabled={isSendingReminder}
+                        >
+                          <Phone className="w-4 h-4 mr-2" />
+                          Send COI Reminder (SMS)
+                        </Button>
+                      )}
+                    </>
                   )}
                   
                   {vendor.phone && (
