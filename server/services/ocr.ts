@@ -108,13 +108,74 @@ class OCRService {
   }
 
   /**
+   * Extract expiry date specifically from ACORD 25 format
+   * @param documentText - Text extracted from ACORD document
+   * @returns Date | null - Parsed expiry date or null if not found
+   */
+  private extractACORDExpiryDate(documentText: string): Date | null {
+    try {
+      // ACORD 25 has a specific table structure with POLICY EFF and POLICY EXP columns
+      // Look for the header pattern first
+      const acordHeaderPattern = /POLICY\s+EFF[\s\S]*?POLICY\s+EXP[\s\S]*?\(MM\/DD\/YYYY\)[\s\S]*?\(MM\/DD\/YYYY\)/gi;
+      
+      if (!acordHeaderPattern.test(documentText)) {
+        return null; // Not an ACORD 25 format
+      }
+      
+      // Extract all date pairs that follow the ACORD table structure
+      const tableRowPatterns = [
+        // Coverage lines with dates: "GENERAL LIABILITY ... 01/01/2025    01/01/2026"
+        /(?:GENERAL\s+LIABILITY|AUTOMOBILE\s+LIABILITY|WORKERS\s+COMPENSATION|UMBRELLA\s+LIAB|EXCESS\s+LIAB)[\s\S]*?(\d{1,2}\/\d{1,2}\/\d{4})\s+(\d{1,2}\/\d{1,2}\/\d{4})/gi,
+        
+        // Direct date pair extraction in table format
+        /(\d{1,2}\/\d{1,2}\/\d{4})\s+(\d{1,2}\/\d{1,2}\/\d{4})(?=[\s\S]*?(?:\$|\bEACH\b|\bCOMBINED\b|\bSTATUTORY\b))/gi,
+        
+        // Date pairs followed by limits/amounts
+        /(\d{1,2}\/\d{1,2}\/\d{4})\s+(\d{1,2}\/\d{1,2}\/\d{4})[\s\S]*?(?:\$[\d,]+|\bEACH OCCURRENCE\b|\bCOMBINED SINGLE LIMIT\b)/gi,
+      ];
+      
+      const dates: Date[] = [];
+      
+      for (const pattern of tableRowPatterns) {
+        const matches = Array.from(documentText.matchAll(pattern));
+        for (const match of matches) {
+          // In ACORD format: match[1] is effective date, match[2] is expiry date
+          const expiryDateStr = match[2];
+          const parsedDate = this.parseDate(expiryDateStr);
+          if (parsedDate && this.isValidCOIDate(parsedDate)) {
+            dates.push(parsedDate);
+            console.log(`ACORD date extracted: ${expiryDateStr} -> ${parsedDate.toISOString()}`);
+          }
+        }
+      }
+      
+      if (dates.length > 0) {
+        // Return the latest expiry date found
+        return new Date(Math.max(...dates.map(d => d.getTime())));
+      }
+      
+      return null;
+    } catch (error) {
+      console.error('Error extracting ACORD expiry date:', error);
+      return null;
+    }
+  }
+
+  /**
    * Extract COI expiry date from document text
    * @param documentText - Text extracted from COI document
    * @returns Date | null - Parsed expiry date or null if not found
    */
   extractCOIExpiryDate(documentText: string): Date | null {
     try {
-      // Common COI expiry date patterns
+      // First try ACORD 25 specific extraction
+      const acordDate = this.extractACORDExpiryDate(documentText);
+      if (acordDate) {
+        console.log('ACORD 25 expiry date extracted successfully');
+        return acordDate;
+      }
+      
+      // Fall back to general COI expiry date patterns
       const patterns = [
         // MM/DD/YYYY or MM-DD-YYYY
         /(?:expir[es]*|expires?|exp\.?|policy period|coverage period|effective)[\s\S]*?(\d{1,2}[\/\-]\d{1,2}[\/\-]\d{4})/gi,
@@ -131,14 +192,21 @@ class OCRService {
         // Expiration table patterns
         /expiration[\s\S]*?(\d{1,2}[\/\-]\d{1,2}[\/\-]\d{4})/gi,
         
-        // ACORD 25 table patterns - two dates side by side (effective and expiry)
-        /(\d{1,2}[\/\-]\d{1,2}[\/\-]\d{4})\s+(\d{1,2}[\/\-]\d{1,2}[\/\-]\d{4})/gi,
+        // ACORD 25 specific patterns
+        // Policy EFF and Policy EXP column structure
+        /policy\s+eff[\s\S]*?policy\s+exp[\s\S]*?(\d{1,2}[\/\-]\d{1,2}[\/\-]\d{4})\s+(\d{1,2}[\/\-]\d{1,2}[\/\-]\d{4})/gi,
         
-        // General liability/auto liability specific ACORD patterns
-        /(?:general liability|automobile liability|workers compensation)[\s\S]*?(\d{1,2}[\/\-]\d{1,2}[\/\-]\d{4})\s+(\d{1,2}[\/\-]\d{1,2}[\/\-]\d{4})/gi,
+        // ACORD table row patterns - coverage type followed by dates
+        /(?:general liability|automobile liability|workers compensation|umbrella|excess|professional liability)[\s\S]*?(\d{1,2}[\/\-]\d{1,2}[\/\-]\d{4})\s+(\d{1,2}[\/\-]\d{1,2}[\/\-]\d{4})/gi,
         
-        // Policy EXP column patterns
+        // ACORD date pairs in table format (effective date, expiry date)
+        /(\d{1,2}[\/\-]\d{1,2}[\/\-]\d{4})\s+(\d{1,2}[\/\-]\d{1,2}[\/\-]\d{4})(?=[\s\S]*?(?:\$|EACH|COMBINED|STATUTORY))/gi,
+        
+        // Policy EXP column specific
         /policy\s+exp[\s\S]*?(\d{1,2}[\/\-]\d{1,2}[\/\-]\d{4})/gi,
+        
+        // ACORD certificate expiry patterns
+        /(?:mm\/dd\/yyyy)[\s\S]*?(\d{1,2}[\/\-]\d{1,2}[\/\-]\d{4})\s+(\d{1,2}[\/\-]\d{1,2}[\/\-]\d{4})/gi,
       ];
 
       const dates: Date[] = [];

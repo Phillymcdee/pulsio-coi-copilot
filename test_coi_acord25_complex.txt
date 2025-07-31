@@ -1,0 +1,70 @@
+ACORD CERTIFICATE OF LIABILITY INSURANCE                     DATE (MM/DD/YYYY): 02/15/2025
+
+PRODUCER                                    INSURER(S) AFFORDING COVERAGE                NAIC #
+Best Coverage Insurance                     A: Nationwide Insurance Co.                  23787
+Contact: Mary Johnson                       B: Hartford Insurance Co.                    19224
+Phone: (555) 987-6543                      C: Zurich Insurance Co.                      16535
+Email: mary@bestcoverage.com               D: American Family Insurance                  19275
+                                           E:
+                                           F:
+
+INSURED
+Multi-Trade Contractors Inc.
+567 Commerce Boulevard
+Industrial City, TX 75001
+
+COVERAGES                    CERTIFICATE NUMBER: ACORD-2025-567890
+
+THIS IS TO CERTIFY THAT THE POLICIES OF INSURANCE LISTED BELOW HAVE BEEN ISSUED TO THE INSURED NAMED ABOVE FOR THE POLICY PERIOD INDICATED.
+
+TYPE OF INSURANCE           SUBR   ADDL    POLICY EFF    POLICY EXP     LIMITS
+                           WVD    INSRD   (MM/DD/YYYY)  (MM/DD/YYYY)
+
+GENERAL LIABILITY           ☐      ☑      03/01/2025    03/01/2027     EACH OCCURRENCE           $2,000,000
+☑ Commercial General Liability                                        DAMAGE TO RENTED
+☐ Claims-Made ☑ Occur                                                PREMISES (Ea occurrence) $300,000
+                                                                      MED EXP (Any one person)  $10,000
+                                                                      PERSONAL & ADV INJURY     $2,000,000
+                                                                      GENERAL AGGREGATE         $4,000,000
+                                                                      PRODUCTS-COMP/OP AGG      $4,000,000
+
+AUTOMOBILE LIABILITY       ☐      ☑      03/01/2025    03/01/2027     COMBINED SINGLE LIMIT     $2,000,000
+☑ Any Auto                                                           (Ea accident)
+☐ Owned Autos Only                                                   BODILY INJURY (Per person) $
+☐ Owned Autos Other                                                  BODILY INJURY (Per accident) $
+  Than Autos                                                         PROPERTY DAMAGE           $
+☐ Hired Autos              ☐ Scheduled
+☐ Non-Owned Autos            Autos
+
+UMBRELLA LIAB             ☐      ☑      03/01/2025    03/01/2027     EACH OCCURRENCE           $10,000,000
+EXCESS LIAB                                                          AGGREGATE                 $10,000,000
+
+DED    RETENTION $
+WORKERS COMPENSATION      WVD    ☑      03/01/2025    03/01/2027     X STATUTORY LIMITS        EACH ACCIDENT        $1,000,000
+AND EMPLOYERS' LIABILITY                                             DISEASE - POLICY LIMIT   $1,000,000
+                                                                     DISEASE - EA EMPLOYEE     $1,000,000
+
+PROFESSIONAL LIABILITY    ☐      ☑      03/01/2025    03/01/2027     EACH CLAIM               $5,000,000
+                                                                     AGGREGATE                 $5,000,000
+
+OTHER
+
+DESCRIPTION OF OPERATIONS / LOCATIONS / VEHICLES (ACORD 101, Additional Remarks Schedule, may be attached if more space is required)
+
+Multi-trade construction services including electrical, plumbing, HVAC, and general contracting.
+Additional insured status required for all project-specific work.
+
+CERTIFICATE HOLDER                                    CANCELLATION
+
+Premium Construction Group                            SHOULD ANY OF THE ABOVE DESCRIBED POLICIES BE CANCELLED BEFORE
+123 Developer Drive                                  THE EXPIRATION DATE THEREOF, NOTICE WILL BE ENDEAVORED TO BE GIVEN
+Suite 200                                           IN ACCORDANCE WITH THE APPLICABLE REQUIREMENTS.
+Metro City, TX 75202
+
+AUTHORIZED REPRESENTATIVE
+
+[Signature]
+Robert Wilson, Senior Account Executive
+Date: 02/15/2025
+
+ACORD 25 (2016/03)
