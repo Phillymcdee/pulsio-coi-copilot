@@ -1,0 +1,45 @@
+CERTIFICATE OF LIABILITY INSURANCE
+
+Producer: ABC Insurance Agency
+Address: 456 Insurance Blvd, Coverage City, ST 54321
+Phone: (555) 123-4567
+
+Insured: ABC Electric Inc.
+Address: 123 Main Street, Anytown, ST 12345
+
+COVERAGES
+Commercial General Liability:
+Policy Number: CGL123456789
+Policy Period: 01/15/2025 to 01/15/2026
+General Aggregate: $2,000,000
+Products-Comp/Op Agg: $2,000,000
+Personal & Adv Injury: $1,000,000
+Each Occurrence: $1,000,000
+Fire Damage: $50,000
+Med Exp: $5,000
+
+Commercial Automobile Liability:
+Policy Number: CAL987654321
+Policy Period: 01/15/2025 to 01/15/2026
+Combined Single Limit: $1,000,000
+
+Workers' Compensation:
+Policy Number: WC555666777
+Policy Period: 01/15/2025 to 01/15/2026
+WC Statutory Limits
+EL Each Accident: $1,000,000
+EL Disease-Policy Limit: $1,000,000
+EL Disease-Each Employee: $1,000,000
+
+Certificate Holder:
+Your Company Name
+123 Business Ave
+Your City, ST 12345
+
+This certificate is issued as a matter of information only and confers no rights upon the certificate holder.
+This certificate does not affirmatively or negatively amend, extend or alter the coverage afforded by the policies below.
+
+EXPIRATION DATE: 01/15/2026
+
+Authorized Representative Signature: ________________
+Date: January 31, 2025
