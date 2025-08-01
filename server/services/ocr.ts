@@ -41,9 +41,9 @@ class OCRService {
     try {
       console.log('Starting PDF text extraction with pdfjs-dist');
       
-      // Load PDF document
+      // Load PDF document - convert Buffer to Uint8Array
       const loadingTask = getDocument({
-        data: pdfBuffer,
+        data: new Uint8Array(pdfBuffer),
         verbosity: 0, // Suppress warnings
       });
       
