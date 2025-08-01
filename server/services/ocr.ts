@@ -1,8 +1,7 @@
 import Tesseract from 'tesseract.js';
+// Use dynamic import for pdfjs-dist to avoid initialization issues
+import { getDocument } from 'pdfjs-dist/legacy/build/pdf.mjs';
 import sharp from 'sharp';
-
-// Dynamic import to avoid initialization issues
-let pdfParseModule: any = null;
 
 /**
  * OCR Service for extracting text and dates from COI documents
@@ -34,28 +33,48 @@ class OCRService {
   }
 
   /**
-   * Extract text from PDF using pdf-parse
+   * Extract text from PDF using pdfjs-dist
    * @param pdfBuffer - PDF file buffer
    * @returns Promise<string> - Extracted text
    */
   private async extractTextFromPDF(pdfBuffer: Buffer): Promise<string> {
     try {
-      // Use dynamic import with the workaround in place
-      const pdfParseModule = await import('pdf-parse');
-      const pdfParse = pdfParseModule.default || pdfParseModule;
-      console.log('PDF-parse loaded successfully');
+      console.log('Starting PDF text extraction with pdfjs-dist');
       
-      const data = await pdfParse(pdfBuffer);
-      console.log(`PDF text extraction completed, length: ${data.text?.length || 0}`);
+      // Load PDF document
+      const loadingTask = getDocument({
+        data: pdfBuffer,
+        verbosity: 0, // Suppress warnings
+      });
       
-      if (data.text && data.text.trim().length > 0) {
-        return data.text;
+      const pdf = await loadingTask.promise;
+      console.log(`PDF loaded successfully, ${pdf.numPages} pages`);
+      
+      let fullText = '';
+      
+      // Extract text from all pages
+      for (let pageNum = 1; pageNum <= pdf.numPages; pageNum++) {
+        const page = await pdf.getPage(pageNum);
+        const textContent = await page.getTextContent();
+        
+        // Combine all text items
+        const pageText = textContent.items
+          .map((item: any) => item.str)
+          .join(' ');
+        
+        fullText += pageText + '\n';
+      }
+      
+      console.log(`PDF text extraction completed, length: ${fullText.trim().length}`);
+      
+      if (fullText.trim().length > 0) {
+        return fullText.trim();
       } else {
         console.warn('PDF extraction returned empty text - may be image-based PDF');
         return '';
       }
     } catch (error) {
-      console.error('Error parsing PDF:', error);
+      console.error('Error parsing PDF with pdfjs-dist:', error);
       return await this.fallbackPDFToImageOCR(pdfBuffer);
     }
   }
@@ -109,10 +128,10 @@ class OCRService {
    * @returns Promise<string> - Extracted text
    */
   private async fallbackPDFToImageOCR(pdfBuffer: Buffer): Promise<string> {
-    console.warn('PDF appears to be image-based or text extraction failed');
+    console.warn('PDF text extraction failed - attempting OCR fallback');
     console.warn('Advanced PDF-to-image OCR not implemented - returning empty text');
-    // This would require pdf2pic or similar library for image conversion
-    // followed by Tesseract.js for OCR processing
+    // Future enhancement: Convert PDF pages to images using Canvas
+    // then process with Tesseract.js for OCR
     return '';
   }
 
