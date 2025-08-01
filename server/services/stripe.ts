@@ -73,14 +73,27 @@ export class StripeService {
 
   async createPortalSession(userId: string): Promise<string> {
     const user = await storage.getUser(userId);
-    if (!user?.stripeCustomerId) {
-      throw new Error('No stripe customer found');
+    if (!user) {
+      throw new Error('User not found');
     }
 
-    const returnUrl = `${process.env.REPLIT_DOMAINS?.split(',')[0]}/settings`;
+    let customerId = user.stripeCustomerId;
+
+    // Create customer if doesn't exist
+    if (!customerId) {
+      const customer = await stripe.customers.create({
+        email: user.email || undefined,
+        name: user.firstName && user.lastName ? `${user.firstName} ${user.lastName}` : undefined,
+      });
+      
+      customerId = customer.id;
+      await storage.updateUserStripeInfo(user.id, customerId);
+    }
+
+    const returnUrl = `https://${process.env.REPLIT_DOMAINS?.split(',')[0]}/settings`;
 
     const session = await stripe.billingPortal.sessions.create({
-      customer: user.stripeCustomerId,
+      customer: customerId,
       return_url: returnUrl,
     });
 

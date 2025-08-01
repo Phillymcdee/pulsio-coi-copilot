@@ -2,9 +2,10 @@ import { useQuery } from "@tanstack/react-query";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { AlertTriangle, ArrowRight, CheckCircle } from "lucide-react";
-import { Link } from "wouter";
+import { Link, useLocation } from "wouter";
 
 export function MissingDocsCard() {
+  const [, navigate] = useLocation();
   const { data: stats, isLoading } = useQuery({
     queryKey: ["/api/dashboard/stats"],
   });
@@ -57,7 +58,7 @@ export function MissingDocsCard() {
                   variant="ghost" 
                   size="sm" 
                   className="text-primary hover:text-primary-dark"
-                  onClick={() => window.location.href = `/vendors/${doc.vendorId}`}
+                  onClick={() => navigate(`/vendors/${doc.vendorId}`)}
                 >
                   Remind
                 </Button>

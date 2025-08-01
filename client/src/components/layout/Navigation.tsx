@@ -6,7 +6,8 @@ import {
   DropdownMenu, 
   DropdownMenuContent, 
   DropdownMenuItem, 
-  DropdownMenuTrigger 
+  DropdownMenuTrigger,
+  DropdownMenuSeparator 
 } from "@/components/ui/dropdown-menu";
 import { Link, useLocation } from "wouter";
 import { 
@@ -15,9 +16,22 @@ import {
   Settings, 
   Bell, 
   ChevronDown,
-  Activity
+  Activity,
+  AlertTriangle,
+  Clock,
+  FileText,
+  CheckCircle
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
+
+interface DashboardStats {
+  missingDocs?: Array<{ vendorName: string; docType: string; vendorId: string }>;
+  expiringCOIs?: Array<{ vendorName: string; vendorId: string; daysUntilExpiry: number }>;
+  remindersSent: number;
+  docsReceived: number;
+  totalVendors: number;
+  moneyAtRisk: number;
+}
 
 export function Navigation() {
   const { user } = useAuth();
@@ -25,6 +39,10 @@ export function Navigation() {
 
   const { data: account } = useQuery({
     queryKey: ["/api/account"],
+  });
+
+  const { data: dashboardStats } = useQuery<DashboardStats>({
+    queryKey: ["/api/dashboard/stats"],
   });
 
   const isActive = (path: string) => {
@@ -87,15 +105,59 @@ export function Navigation() {
 
           <div className="flex items-center space-x-4">
             {/* Notifications */}
-            <Button variant="ghost" size="icon" className="relative">
-              <Bell className="w-5 h-5 text-gray-500" />
-              <Badge 
-                variant="destructive" 
-                className="absolute -top-1 -right-1 h-5 w-5 flex items-center justify-center p-0 text-xs"
-              >
-                3
-              </Badge>
-            </Button>
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="ghost" size="icon" className="relative">
+                  <Bell className="w-5 h-5 text-gray-500" />
+                  {dashboardStats && ((dashboardStats.missingDocs?.length || 0) > 0 || (dashboardStats.expiringCOIs?.length || 0) > 0) && (
+                    <Badge 
+                      variant="destructive" 
+                      className="absolute -top-1 -right-1 h-5 w-5 flex items-center justify-center p-0 text-xs"
+                    >
+                      {(dashboardStats.missingDocs?.length || 0) + (dashboardStats.expiringCOIs?.length || 0)}
+                    </Badge>
+                  )}
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="w-80">
+                <div className="px-4 py-2 border-b">
+                  <h3 className="font-semibold text-sm">Notifications</h3>
+                </div>
+                {dashboardStats?.missingDocs?.map((doc: any, index: number) => (
+                  <DropdownMenuItem key={index} asChild>
+                    <Link href={`/vendors/${doc.vendorId}`}>
+                      <div className="flex items-center space-x-3 w-full">
+                        <AlertTriangle className="w-4 h-4 text-orange-500 flex-shrink-0" />
+                        <div className="flex-1 min-w-0">
+                          <p className="text-sm font-medium truncate">{doc.vendorName}</p>
+                          <p className="text-xs text-gray-500">Missing {doc.docType}</p>
+                        </div>
+                      </div>
+                    </Link>
+                  </DropdownMenuItem>
+                ))}
+                {dashboardStats?.expiringCOIs?.map((coi: any, index: number) => (
+                  <DropdownMenuItem key={index} asChild>
+                    <Link href={`/vendors/${coi.vendorId}`}>
+                      <div className="flex items-center space-x-3 w-full">
+                        <Clock className="w-4 h-4 text-yellow-500 flex-shrink-0" />
+                        <div className="flex-1 min-w-0">
+                          <p className="text-sm font-medium truncate">{coi.vendorName}</p>
+                          <p className="text-xs text-gray-500">COI expires in {coi.daysUntilExpiry} days</p>
+                        </div>
+                      </div>
+                    </Link>
+                  </DropdownMenuItem>
+                ))}
+                {(!dashboardStats?.missingDocs?.length && !dashboardStats?.expiringCOIs?.length) && (
+                  <div className="px-4 py-8 text-center text-gray-500">
+                    <CheckCircle className="w-8 h-8 mx-auto mb-2 text-green-500" />
+                    <p className="text-sm">All caught up!</p>
+                    <p className="text-xs">No pending notifications</p>
+                  </div>
+                )}
+              </DropdownMenuContent>
+            </DropdownMenu>
 
             {/* User Menu */}
             <DropdownMenu>
