@@ -40,17 +40,22 @@ class OCRService {
    */
   private async extractTextFromPDF(pdfBuffer: Buffer): Promise<string> {
     try {
-      // Lazy load pdf-parse to avoid initialization issues
-      if (!pdfParseModule) {
-        const pdfParse = await import('pdf-parse');
-        pdfParseModule = pdfParse.default || pdfParse;
-      }
+      // Use dynamic import with the workaround in place
+      const pdfParseModule = await import('pdf-parse');
+      const pdfParse = pdfParseModule.default || pdfParseModule;
+      console.log('PDF-parse loaded successfully');
       
-      const data = await pdfParseModule(pdfBuffer);
-      return data.text;
+      const data = await pdfParse(pdfBuffer);
+      console.log(`PDF text extraction completed, length: ${data.text?.length || 0}`);
+      
+      if (data.text && data.text.trim().length > 0) {
+        return data.text;
+      } else {
+        console.warn('PDF extraction returned empty text - may be image-based PDF');
+        return '';
+      }
     } catch (error) {
       console.error('Error parsing PDF:', error);
-      // If PDF text extraction fails, convert first page to image and use OCR
       return await this.fallbackPDFToImageOCR(pdfBuffer);
     }
   }
@@ -96,14 +101,18 @@ class OCRService {
     }
   }
 
+
+
   /**
    * Fallback method: Convert PDF to image and use OCR
    * @param pdfBuffer - PDF file buffer
    * @returns Promise<string> - Extracted text
    */
   private async fallbackPDFToImageOCR(pdfBuffer: Buffer): Promise<string> {
-    // For now, return empty string - would need pdf2pic or similar for full implementation
-    console.warn('PDF to image conversion not implemented - returning empty text');
+    console.warn('PDF appears to be image-based or text extraction failed');
+    console.warn('Advanced PDF-to-image OCR not implemented - returning empty text');
+    // This would require pdf2pic or similar library for image conversion
+    // followed by Tesseract.js for OCR processing
     return '';
   }
 
