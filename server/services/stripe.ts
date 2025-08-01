@@ -130,7 +130,7 @@ export class StripeService {
         if (configError.message?.includes('No configuration provided')) {
           console.log('Creating default billing portal configuration...');
           
-          // Create a basic configuration for the billing portal
+          // Create a minimal configuration for the billing portal
           const configuration = await stripe.billingPortal.configurations.create({
             business_profile: {
               privacy_policy_url: `https://${domain}`,
@@ -143,14 +143,6 @@ export class StripeService {
               subscription_cancel: {
                 enabled: true,
                 mode: 'at_period_end',
-              },
-              subscription_pause: {
-                enabled: false,
-              },
-              subscription_update: {
-                enabled: true,
-                default_allowed_updates: ['price'],
-                proration_behavior: 'create_prorations',
               },
               invoice_history: {
                 enabled: true,
