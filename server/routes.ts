@@ -11,6 +11,7 @@ import { sseService, eventBus } from "./services/sse";
 import { cronService } from "./services/cron";
 import { documentStorageService } from "./services/documentStorage";
 import { ocrService } from "./services/ocr";
+import { logger } from "./services/logger";
 import multer from 'multer';
 import { z } from 'zod';
 
@@ -724,11 +725,27 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post('/api/create-portal-session', isAuthenticated, async (req: any, res) => {
     try {
       const userId = req.user.claims.sub;
+      logger.info('Creating Stripe portal session for user', { userId });
+      
       const url = await stripeService.createPortalSession(userId);
+      
+      logger.info('Stripe portal session created successfully', { 
+        userId, 
+        portalUrl: url.substring(0, 50) + '...' 
+      });
+      
       res.json({ url });
     } catch (error) {
-      console.error("Error creating portal session:", error);
-      res.status(500).json({ message: "Failed to create portal session" });
+      logger.error('Error creating portal session', { 
+        userId: req.user?.claims?.sub, 
+        error: error instanceof Error ? error.message : String(error),
+        stack: error instanceof Error ? error.stack : undefined
+      });
+      
+      res.status(500).json({ 
+        message: "Failed to create portal session",
+        error: error instanceof Error ? error.message : String(error)
+      });
     }
   });
 

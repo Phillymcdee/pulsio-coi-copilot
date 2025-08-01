@@ -72,32 +72,62 @@ export class StripeService {
   }
 
   async createPortalSession(userId: string): Promise<string> {
+    console.log(`Creating portal session for user: ${userId}`);
+    
     const user = await storage.getUser(userId);
     if (!user) {
       throw new Error('User not found');
     }
 
+    console.log(`User found: ${user.email}, existing customerId: ${user.stripeCustomerId}`);
+
     let customerId = user.stripeCustomerId;
 
     // Create customer if doesn't exist
     if (!customerId) {
-      const customer = await stripe.customers.create({
-        email: user.email || undefined,
-        name: user.firstName && user.lastName ? `${user.firstName} ${user.lastName}` : undefined,
-      });
+      console.log('Creating new Stripe customer...');
       
-      customerId = customer.id;
-      await storage.updateUserStripeInfo(user.id, customerId);
+      try {
+        const customer = await stripe.customers.create({
+          email: user.email || undefined,
+          name: user.firstName && user.lastName ? `${user.firstName} ${user.lastName}` : undefined,
+          metadata: {
+            userId: user.id,
+            replit_user: 'true'
+          }
+        });
+        
+        customerId = customer.id;
+        console.log(`Stripe customer created: ${customerId}`);
+        
+        await storage.updateUserStripeInfo(user.id, customerId);
+        console.log('User updated with Stripe customer ID');
+      } catch (stripeError) {
+        console.error('Failed to create Stripe customer:', stripeError);
+        throw new Error(`Failed to create Stripe customer: ${stripeError instanceof Error ? stripeError.message : String(stripeError)}`);
+      }
     }
 
-    const returnUrl = `https://${process.env.REPLIT_DOMAINS?.split(',')[0]}/settings`;
+    const domain = process.env.REPLIT_DOMAINS?.split(',')[0];
+    if (!domain) {
+      throw new Error('REPLIT_DOMAINS environment variable not configured');
+    }
+    
+    const returnUrl = `https://${domain}/settings`;
+    console.log(`Creating portal session with return URL: ${returnUrl}`);
 
-    const session = await stripe.billingPortal.sessions.create({
-      customer: customerId,
-      return_url: returnUrl,
-    });
+    try {
+      const session = await stripe.billingPortal.sessions.create({
+        customer: customerId,
+        return_url: returnUrl,
+      });
 
-    return session.url;
+      console.log(`Portal session created successfully: ${session.id}`);
+      return session.url;
+    } catch (stripeError) {
+      console.error('Failed to create billing portal session:', stripeError);
+      throw new Error(`Failed to create billing portal session: ${stripeError instanceof Error ? stripeError.message : String(stripeError)}`);
+    }
   }
 
   async handleWebhook(rawBody: string, signature: string): Promise<void> {
