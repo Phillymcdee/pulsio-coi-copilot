@@ -117,13 +117,61 @@ export class StripeService {
     console.log(`Creating portal session with return URL: ${returnUrl}`);
 
     try {
-      const session = await stripe.billingPortal.sessions.create({
-        customer: customerId,
-        return_url: returnUrl,
-      });
+      // First, try to create a portal configuration if none exists
+      try {
+        const session = await stripe.billingPortal.sessions.create({
+          customer: customerId,
+          return_url: returnUrl,
+        });
 
-      console.log(`Portal session created successfully: ${session.id}`);
-      return session.url;
+        console.log(`Portal session created successfully: ${session.id}`);
+        return session.url;
+      } catch (configError: any) {
+        if (configError.message?.includes('No configuration provided')) {
+          console.log('Creating default billing portal configuration...');
+          
+          // Create a basic configuration for the billing portal
+          const configuration = await stripe.billingPortal.configurations.create({
+            business_profile: {
+              privacy_policy_url: `https://${domain}`,
+              terms_of_service_url: `https://${domain}`,
+            },
+            features: {
+              payment_method_update: {
+                enabled: true,
+              },
+              subscription_cancel: {
+                enabled: true,
+                mode: 'at_period_end',
+              },
+              subscription_pause: {
+                enabled: false,
+              },
+              subscription_update: {
+                enabled: true,
+                default_allowed_updates: ['price'],
+                proration_behavior: 'create_prorations',
+              },
+              invoice_history: {
+                enabled: true,
+              },
+            },
+          });
+
+          console.log(`Created billing portal configuration: ${configuration.id}`);
+
+          // Now create the session with the new configuration
+          const session = await stripe.billingPortal.sessions.create({
+            customer: customerId,
+            return_url: returnUrl,
+            configuration: configuration.id,
+          });
+
+          console.log(`Portal session created successfully with new config: ${session.id}`);
+          return session.url;
+        }
+        throw configError;
+      }
     } catch (stripeError) {
       console.error('Failed to create billing portal session:', stripeError);
       throw new Error(`Failed to create billing portal session: ${stripeError instanceof Error ? stripeError.message : String(stripeError)}`);
