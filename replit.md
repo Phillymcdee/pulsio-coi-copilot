@@ -238,7 +238,9 @@ The architecture prioritizes rapid development and deployment while maintaining 
 - Improved pattern matching for "Policy EXP" column formats
 - Smart fallback to 1-year default when OCR extraction fails
 
-**Production Readiness:** ✓ Document collection system fully operational
+**Production Readiness:** ⚠️ Document collection system functional with text-based testing
+**Critical Gap:** Real PDF OCR validation needed before production deployment
+**Risk:** ACORD 25 processing unvalidated with actual insurance company PDFs
 
 **Current System Status:**
 - Cron service is fully operational with automated sync and reminders
