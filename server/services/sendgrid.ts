@@ -1,5 +1,6 @@
 import { MailService } from '@sendgrid/mail';
 import { storage } from '../storage';
+import { logger } from './logger';
 
 if (!process.env.SENDGRID_API_KEY) {
   throw new Error("SENDGRID_API_KEY environment variable must be set");
@@ -32,7 +33,7 @@ export async function sendEmail(params: EmailParams): Promise<boolean> {
       emailData.html = params.html;
     }
     
-    console.log('📧 Attempting to send email via SendGrid:', {
+    logger.info('Sending email via SendGrid', {
       to: params.to,
       from: params.from,
       subject: params.subject,
@@ -40,15 +41,14 @@ export async function sendEmail(params: EmailParams): Promise<boolean> {
     });
     
     const response = await mailService.send(emailData);
-    console.log('📧 SendGrid response:', response);
-    console.log('✅ Email sent successfully to:', params.to);
+    logger.info('Email sent successfully', { to: params.to, messageId: response[0]?.headers?.['x-message-id'] });
+    
     return true;
   } catch (error) {
-    console.error('❌ SendGrid email error details:', {
-      error: error instanceof Error ? error.message : error,
-      stack: error instanceof Error ? error.stack : undefined,
-      emailTo: params.to,
-      emailFrom: params.from
+    logger.error('SendGrid email failed', { 
+      to: params.to, 
+      subject: params.subject,
+      error: error instanceof Error ? error.message : String(error)
     });
     return false;
   }

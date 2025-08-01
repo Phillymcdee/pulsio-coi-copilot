@@ -6,6 +6,8 @@ import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/useAuth";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { isUnauthorizedError } from "@/lib/authUtils";
+import type { PricingData } from "@shared/types";
+import type { Account } from "@shared/schema";
 import { Navigation } from "@/components/layout/Navigation";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -111,12 +113,12 @@ export default function Subscribe() {
     }
   }, [isAuthenticated, isLoading, toast]);
 
-  const { data: pricing, isLoading: pricingLoading } = useQuery({
+  const { data: pricing, isLoading: pricingLoading } = useQuery<PricingData>({
     queryKey: ["/api/pricing"],
     enabled: isAuthenticated,
   });
 
-  const { data: account } = useQuery({
+  const { data: account } = useQuery<Account>({
     queryKey: ["/api/account"],
     enabled: isAuthenticated,
   });
@@ -182,7 +184,7 @@ export default function Subscribe() {
           <div className="text-center mb-8">
             <h1 className="text-3xl font-bold text-gray-900 mb-2">Complete Your Subscription</h1>
             <p className="text-gray-600">
-              You're subscribing to the {pricing?.[selectedPlan]?.name} plan for ${pricing?.[selectedPlan]?.price}/month
+              You're subscribing to the {pricing && selectedPlan in pricing ? pricing[selectedPlan].name : 'selected'} plan for ${pricing && selectedPlan in pricing ? pricing[selectedPlan].price : 0}/month
             </p>
           </div>
 
@@ -215,7 +217,7 @@ export default function Subscribe() {
         </div>
 
         {/* Current Plan */}
-        {account?.plan && (
+        {account && 'plan' in account && account.plan && (
           <div className="mb-8">
             <Card className="bg-blue-50 border-blue-200">
               <CardContent className="p-6">
@@ -237,9 +239,9 @@ export default function Subscribe() {
 
         {/* Pricing Cards */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-          {pricing && Object.entries(pricing).map(([planId, plan]: [string, any]) => {
+          {pricing && Object.entries(pricing).map(([planId, plan]) => {
             const isPopular = planId === 'pro';
-            const isCurrentPlan = account?.plan === planId;
+            const isCurrentPlan = account && 'plan' in account && account.plan === planId;
             
             return (
               <Card 

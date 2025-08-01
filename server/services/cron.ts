@@ -4,28 +4,29 @@ import { quickbooksService } from './quickbooks';
 import { emailService } from './sendgrid';
 import { smsService } from './twilio';
 import { eventBus } from './sse';
+import { logger } from './logger';
 
 export class CronService {
   private jobs = new Map<string, cron.ScheduledTask>();
 
   start(): void {
-    console.log('Starting Pulsio cron services...');
+    logger.info('Starting Pulsio cron services...');
 
     // QuickBooks sync - every 20 minutes
     const syncJob = cron.schedule('*/20 * * * *', async () => {
-      console.log('Running QuickBooks sync...');
+      logger.cron('quickbooks-sync', 'started');
       await this.syncAllAccounts();
     });
 
     // Daily reminder job - runs at 9 AM every day
     const reminderJob = cron.schedule('0 9 * * *', async () => {
-      console.log('Running daily reminder job...');
+      logger.cron('daily-reminders', 'started');
       await this.sendScheduledReminders();
     });
 
     // COI expiry check - daily at 8 AM
     const expiryJob = cron.schedule('0 8 * * *', async () => {
-      console.log('Checking for expiring COIs...');
+      logger.cron('coi-expiry-check', 'started');
       await this.checkExpiringCOIs();
     });
 
@@ -35,14 +36,14 @@ export class CronService {
 
     // Jobs are started by default, no need to call start()
 
-    console.log('Cron services started successfully');
+    logger.info('Cron services started successfully');
   }
 
   stop(): void {
-    console.log('Stopping cron services...');
+    logger.info('Stopping cron services...');
     this.jobs.forEach((job, name) => {
       job.destroy();
-      console.log(`Stopped ${name} job`);
+      logger.info(`Stopped ${name} cron job`);
     });
     this.jobs.clear();
   }
@@ -66,16 +67,21 @@ export class CronService {
               vendorCount: vendorsAfter.length,
             });
             
-            console.log(`Synced account ${account.companyName}`);
+            logger.qbo('sync-completed', account.id, { companyName: account.companyName });
           } catch (error) {
-            console.error(`Error syncing account ${account.companyName}:`, error);
+            logger.error(`Error syncing account ${account.companyName}`, { 
+              accountId: account.id,
+              error: error instanceof Error ? error.message : String(error)
+            });
           }
         }
       }
       
-      console.log('QuickBooks sync completed');
+      logger.cron('quickbooks-sync', 'completed');
     } catch (error) {
-      console.error('Error in QuickBooks sync:', error);
+      logger.cron('quickbooks-sync', 'failed', { 
+        error: error instanceof Error ? error.message : String(error) 
+      });
     }
   }
 

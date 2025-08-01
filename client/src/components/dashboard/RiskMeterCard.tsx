@@ -1,9 +1,10 @@
 import { useQuery } from "@tanstack/react-query";
 import { Card, CardContent } from "@/components/ui/card";
 import { Shield } from "lucide-react";
+import type { DashboardStats } from "@shared/types";
 
 export function RiskMeterCard() {
-  const { data: stats, isLoading } = useQuery({
+  const { data: stats, isLoading } = useQuery<DashboardStats>({
     queryKey: ["/api/dashboard/stats"],
   });
 
@@ -88,7 +89,7 @@ export function RiskMeterCard() {
                 All COIs are current! ✅
               </div>
             ) : (
-              expiringCOIs.slice(0, 3).map((coi, index) => (
+              expiringCOIs.slice(0, 3).map((coi: { vendorName: string; daysUntilExpiry: number; vendorId: string }, index: number) => (
                 <div key={index} className="flex items-center justify-between text-sm">
                   <span className="text-gray-600">{coi.vendorName}</span>
                   <span className={`font-medium ${

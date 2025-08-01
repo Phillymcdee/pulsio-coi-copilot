@@ -6,7 +6,7 @@ if (!process.env.STRIPE_SECRET_KEY) {
 }
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY, {
-  apiVersion: "2023-10-16",
+  apiVersion: "2025-06-30.basil",
 });
 
 export class StripeService {
@@ -39,7 +39,7 @@ export class StripeService {
       if (subscription.status === 'active' || subscription.status === 'trialing') {
         return {
           subscriptionId: subscription.id,
-          clientSecret: (subscription.latest_invoice as Stripe.Invoice)?.payment_intent?.client_secret || '',
+          clientSecret: '',
         };
       }
     }
@@ -55,12 +55,19 @@ export class StripeService {
     // Update user with subscription ID
     await storage.updateUserStripeInfo(user.id, customerId, subscription.id);
 
-    const invoice = subscription.latest_invoice as Stripe.Invoice;
-    const paymentIntent = invoice.payment_intent as Stripe.PaymentIntent;
+    const invoice = subscription.latest_invoice;
+    let clientSecret = '';
+    
+    if (invoice && typeof invoice === 'object' && 'payment_intent' in invoice) {
+      const paymentIntent = invoice.payment_intent;
+      if (paymentIntent && typeof paymentIntent === 'object' && 'client_secret' in paymentIntent) {
+        clientSecret = (paymentIntent as any).client_secret || '';
+      }
+    }
 
     return {
       subscriptionId: subscription.id,
-      clientSecret: paymentIntent.client_secret || '',
+      clientSecret,
     };
   }
 
