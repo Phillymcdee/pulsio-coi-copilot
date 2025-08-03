@@ -74,30 +74,46 @@ export function VendorModal({
 
   const handleDownloadCOI = async () => {
     try {
+      console.log('Download button clicked for vendor:', vendor.id);
+      
       // Find the COI document for this vendor
       const response = await fetch(`/api/vendors/${vendor.id}/documents`);
+      console.log('Documents response:', response.status);
+      
       if (!response.ok) {
-        throw new Error('Failed to fetch documents');
+        throw new Error(`Failed to fetch documents: ${response.status}`);
       }
       
       const documents = await response.json();
-      const coiDocument = documents.find((doc: any) => doc.documentType === 'COI');
+      console.log('Fetched documents:', documents);
+      
+      const coiDocument = documents.find((doc: any) => doc.type === 'COI');
+      console.log('Found COI document:', coiDocument);
       
       if (!coiDocument) {
         console.error('No COI document found for vendor');
+        alert('No COI document found for this vendor');
         return;
       }
       
-      // Download the document
-      const downloadUrl = `/api/documents/download/${encodeURIComponent(coiDocument.storageKey)}`;
+      // Download the document using the pre-built URL or construct it
+      const downloadUrl = coiDocument.url || `/api/documents/download/${encodeURIComponent(coiDocument.storageKey)}`;
+      console.log('Download URL:', downloadUrl);
+      
+      // Try direct window.open first
+      window.open(downloadUrl, '_blank');
+      
+      // Fallback to programmatic link click
       const link = document.createElement('a');
       link.href = downloadUrl;
       link.download = coiDocument.filename;
+      link.target = '_blank';
       document.body.appendChild(link);
       link.click();
       document.body.removeChild(link);
     } catch (error) {
       console.error('Error downloading COI:', error);
+      alert(`Error downloading COI: ${error.message}`);
     }
   };
 
