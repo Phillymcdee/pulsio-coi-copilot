@@ -72,11 +72,11 @@ export function VendorModal({
     }
   };
 
-  const handleDownloadCOI = async () => {
+  const handleDownloadDocument = async (docType: 'W9' | 'COI') => {
     try {
-      console.log('Download button clicked for vendor:', vendor.id);
+      console.log(`Download ${docType} button clicked for vendor:`, vendor.id);
       
-      // Find the COI document for this vendor
+      // Find the document for this vendor
       const response = await fetch(`/api/vendors/${vendor.id}/documents`);
       console.log('Documents response:', response.status);
       
@@ -87,17 +87,17 @@ export function VendorModal({
       const documents = await response.json();
       console.log('Fetched documents:', documents);
       
-      const coiDocument = documents.find((doc: any) => doc.type === 'COI');
-      console.log('Found COI document:', coiDocument);
+      const document = documents.find((doc: any) => doc.type === docType);
+      console.log(`Found ${docType} document:`, document);
       
-      if (!coiDocument) {
-        console.error('No COI document found for vendor');
-        alert('No COI document found for this vendor');
+      if (!document) {
+        console.error(`No ${docType} document found for vendor`);
+        alert(`No ${docType} document found for this vendor`);
         return;
       }
       
       // Download the document using the pre-built URL or construct it
-      const downloadUrl = coiDocument.url || `/api/documents/download/${encodeURIComponent(coiDocument.storageKey)}`;
+      const downloadUrl = document.url || `/api/documents/download/${encodeURIComponent(document.storageKey)}`;
       console.log('Download URL:', downloadUrl);
       
       // Try direct window.open first
@@ -106,16 +106,19 @@ export function VendorModal({
       // Fallback to programmatic link click
       const link = document.createElement('a');
       link.href = downloadUrl;
-      link.download = coiDocument.filename;
+      link.download = document.filename;
       link.target = '_blank';
       document.body.appendChild(link);
       link.click();
       document.body.removeChild(link);
     } catch (error) {
-      console.error('Error downloading COI:', error);
-      alert(`Error downloading COI: ${error.message}`);
+      console.error(`Error downloading ${docType}:`, error);
+      alert(`Error downloading ${docType}: ${error.message}`);
     }
   };
+
+  const handleDownloadCOI = () => handleDownloadDocument('COI');
+  const handleDownloadW9 = () => handleDownloadDocument('W9');
 
   const handleSaveEdit = () => {
     onUpdateVendor({
@@ -364,7 +367,7 @@ export function VendorModal({
                       Send Reminder
                     </Button>
                   ) : (
-                    <Button size="sm" variant="outline">
+                    <Button size="sm" variant="outline" onClick={handleDownloadW9}>
                       <Download className="w-4 h-4 mr-1" />
                       Download PDF
                     </Button>
