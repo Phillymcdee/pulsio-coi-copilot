@@ -507,7 +507,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const { id } = req.params;
       const { type, channel } = req.body;
       
-      const uploadLink = `${process.env.REPLIT_DOMAINS?.split(',')[0]}/upload/${id}`;
+      const uploadLink = `https://${process.env.REPLIT_DOMAINS?.split(',')[0]}/upload/${id}`;
       
       let success = false;
       

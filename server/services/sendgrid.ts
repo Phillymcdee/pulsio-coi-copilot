@@ -227,7 +227,7 @@ export class EmailService {
           <li>Get real-time notifications when documents arrive</li>
         </ul>
         <p style="margin: 30px 0;">
-          <a href="${process.env.REPLIT_DOMAINS?.split(',')[0]}/dashboard" style="background-color: #2563eb; color: white; padding: 12px 24px; text-decoration: none; border-radius: 6px; display: inline-block;">
+          <a href="https://${process.env.REPLIT_DOMAINS?.split(',')[0]}/dashboard" style="background-color: #2563eb; color: white; padding: 12px 24px; text-decoration: none; border-radius: 6px; display: inline-block;">
             View Your Dashboard
           </a>
         </p>
@@ -258,7 +258,7 @@ export class EmailService {
       throw new Error('Account not found');
     }
 
-    const uploadLink = `${process.env.REPLIT_DOMAINS?.split(',')[0]}/upload/${vendor.id}`;
+    const uploadLink = `https://${process.env.REPLIT_DOMAINS?.split(',')[0]}/upload/${vendor.id}`;
 
     const htmlContent = `
       <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">

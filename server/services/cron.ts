@@ -165,7 +165,7 @@ export class CronService {
         // Skip if vendor is exempt
         if (vendor.isExempt) continue;
 
-        const uploadLink = `${process.env.REPLIT_DOMAINS?.split(',')[0]}/upload/${vendor.id}`;
+        const uploadLink = `https://${process.env.REPLIT_DOMAINS?.split(',')[0]}/upload/${vendor.id}`;
         
         // Send W-9 reminder if missing
         if (vendor.w9Status === 'MISSING' && vendor.email) {

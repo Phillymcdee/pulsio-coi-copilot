@@ -155,7 +155,7 @@ export class SMSService {
       throw new Error('Account not found');
     }
 
-    const uploadLink = `${process.env.REPLIT_DOMAINS?.split(',')[0]}/upload/${vendor.id}`;
+    const uploadLink = `https://${process.env.REPLIT_DOMAINS?.split(',')[0]}/upload/${vendor.id}`;
     const message = `Hi ${vendor.name}, your Certificate of Insurance expires in ${daysUntilExpiry} days. Please upload a renewed certificate: ${uploadLink} - ${account.companyName}`;
 
     const success = await this.sendSMS(vendor.phone, message);
