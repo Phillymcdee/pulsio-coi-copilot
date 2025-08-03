@@ -1,8 +1,11 @@
 import { Client } from '@replit/object-storage';
+import * as fs from 'fs/promises';
+import * as path from 'path';
 
 export class DocumentStorageService {
   private client: Client | null = null;
   private initialized: boolean = false;
+  private localStorageDir: string = './storage';
 
   private async initializeClient(): Promise<boolean> {
     if (this.initialized) {
@@ -48,8 +51,16 @@ export class DocumentStorageService {
           throw new Error(`Upload failed: ${result.error.message}`);
         }
       } else {
-        // Simulate upload for development/testing
-        console.log(`Simulated upload: ${storageKey} (${file.length} bytes, ${contentType})`);
+        // Store locally for development/testing
+        const localPath = path.join(this.localStorageDir, storageKey);
+        const dirPath = path.dirname(localPath);
+        
+        // Ensure directory exists
+        await fs.mkdir(dirPath, { recursive: true });
+        
+        // Write file to local storage
+        await fs.writeFile(localPath, file);
+        console.log(`Local storage: ${storageKey} (${file.length} bytes, ${contentType})`);
       }
 
       return storageKey;
@@ -124,8 +135,14 @@ export class DocumentStorageService {
         }
         return result.value;
       } else {
-        // In development, assume documents exist for testing
-        return true;
+        // Check local storage in development
+        const localPath = path.join(this.localStorageDir, storageKey);
+        try {
+          await fs.access(localPath);
+          return true;
+        } catch {
+          return false;
+        }
       }
     } catch (error) {
       return false;
@@ -149,10 +166,19 @@ export class DocumentStorageService {
         
         return result.value[0]; // downloadAsBytes returns [Buffer]
       } else {
-        // Return a sample PDF buffer for development/testing
-        const samplePdf = Buffer.from('Sample PDF content for testing');
-        console.log(`Simulated download: ${storageKey}`);
-        return samplePdf;
+        // Read from local storage for development/testing
+        const localPath = path.join(this.localStorageDir, storageKey);
+        
+        try {
+          const fileBuffer = await fs.readFile(localPath);
+          console.log(`Local download: ${storageKey} (${fileBuffer.length} bytes)`);
+          return fileBuffer;
+        } catch (fsError: any) {
+          if (fsError.code === 'ENOENT') {
+            throw new Error(`Document not found in local storage: ${storageKey}`);
+          }
+          throw fsError;
+        }
       }
     } catch (error) {
       console.error('Error downloading document:', error);
