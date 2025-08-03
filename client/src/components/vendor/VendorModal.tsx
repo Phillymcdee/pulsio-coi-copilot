@@ -341,7 +341,7 @@ export function VendorModal({
                   </div>
                   <p className="text-sm mb-3">
                     {vendor.coiExpiry 
-                      ? `Expires: ${new Date(vendor.coiExpiry).toLocaleDateString()}`
+                      ? `Expires: ${new Date(vendor.coiExpiry).toLocaleDateString('en-US', { timeZone: 'UTC' })}`
                       : 'Insurance coverage verification'
                     }
                   </p>

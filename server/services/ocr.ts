@@ -326,7 +326,34 @@ class OCRService {
       // Clean up the date string
       const cleanDateStr = dateStr.trim().replace(/[^\w\s\/\-,]/g, '');
       
-      // Try parsing with different methods
+      // Handle YYYY-MM-DD format specifically to avoid timezone issues
+      const ymdMatch = cleanDateStr.match(/^(\d{4})[\/\-](\d{1,2})[\/\-](\d{1,2})$/);
+      if (ymdMatch) {
+        const year = parseInt(ymdMatch[1], 10);
+        const month = parseInt(ymdMatch[2], 10) - 1; // JavaScript months are 0-indexed
+        const day = parseInt(ymdMatch[3], 10);
+        return new Date(year, month, day);
+      }
+      
+      // Handle MM/DD/YYYY or MM-DD-YYYY format
+      const mdyMatch = cleanDateStr.match(/^(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{4})$/);
+      if (mdyMatch) {
+        const month = parseInt(mdyMatch[1], 10) - 1; // JavaScript months are 0-indexed
+        const day = parseInt(mdyMatch[2], 10);
+        const year = parseInt(mdyMatch[3], 10);
+        return new Date(year, month, day);
+      }
+      
+      // Handle DD/MM/YYYY or DD-MM-YYYY format (less common but possible)
+      const dmyMatch = cleanDateStr.match(/^(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{4})$/);
+      if (dmyMatch && parseInt(dmyMatch[1], 10) > 12) {
+        const day = parseInt(dmyMatch[1], 10);
+        const month = parseInt(dmyMatch[2], 10) - 1; // JavaScript months are 0-indexed
+        const year = parseInt(dmyMatch[3], 10);
+        return new Date(year, month, day);
+      }
+      
+      // Try parsing with standard methods as fallback
       const parsedDate = new Date(cleanDateStr);
       
       if (isNaN(parsedDate.getTime())) {
