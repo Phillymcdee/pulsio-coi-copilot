@@ -125,6 +125,16 @@ The architecture prioritizes rapid development and deployment while maintaining 
 
 ## Recent Changes
 
+**August 3, 2025:**
+✓ **COMPLETED: COI Document Processing & Download System** - Full end-to-end functionality
+✓ Fixed COI expiry date extraction to correctly identify 2026-08-03 dates (resolved timezone issues)
+✓ Updated OCR regex patterns to distinguish between effective and expiry dates
+✓ Resolved document download corruption issue (30-byte fake files)
+✓ Implemented proper local file storage system for development mode
+✓ Added comprehensive download functionality with error handling and debugging
+✓ Created vendor documents API endpoint with authentication
+✓ Enhanced document storage service with local filesystem support in development
+
 **July 27, 2025:**
 ✓ **COMPLETED: Advanced OCR Document Processing** - Full COI expiry date extraction
 ✓ Built comprehensive OCR service supporting PDF, images, and text files
