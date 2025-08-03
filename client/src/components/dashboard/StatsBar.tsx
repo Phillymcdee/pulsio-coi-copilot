@@ -1,13 +1,17 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { CheckCircle, Loader2, RefreshCw } from "lucide-react";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { CheckCircle, Loader2, RefreshCw, AlertTriangle, Users, FileX, Clock } from "lucide-react";
 import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
+import { useState } from "react";
 
 export function StatsBar() {
   const { toast } = useToast();
   const queryClient = useQueryClient();
+  const [showMissingDocs, setShowMissingDocs] = useState(false);
+  const [showExpiringCOIs, setShowExpiringCOIs] = useState(false);
   
   const { data: stats, isLoading } = useQuery({
     queryKey: ["/api/dashboard/stats"],
@@ -84,31 +88,105 @@ export function StatsBar() {
         
         <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
           <div className="text-center">
-            <div className="text-2xl font-bold text-primary">
-              {(stats as any)?.remindersSent || 0}
+            <div className="flex items-center justify-center space-x-2 mb-1">
+              <Users className="w-5 h-5 text-blue-600" />
+              <div className="text-2xl font-bold text-blue-600">
+                {(stats as any)?.compliancePercentage || 0}%
+              </div>
             </div>
-            <div className="text-sm text-gray-600">Reminders Sent</div>
+            <div className="text-sm text-gray-600">Vendor Compliance</div>
+            <div className="text-xs text-gray-500 mt-1">
+              {(stats as any)?.compliantVendors || 0} of {(stats as any)?.totalVendors || 0} vendors
+            </div>
           </div>
           
-          <div className="text-center">
-            <div className="text-2xl font-bold text-green-600">
-              {(stats as any)?.docsReceived || 0}
-            </div>
-            <div className="text-sm text-gray-600">Docs Received</div>
-          </div>
+          <Dialog open={showMissingDocs} onOpenChange={setShowMissingDocs}>
+            <DialogTrigger asChild>
+              <div className="text-center cursor-pointer hover:bg-gray-50 p-2 rounded-lg transition-colors">
+                <div className="flex items-center justify-center space-x-2 mb-1">
+                  <FileX className="w-5 h-5 text-red-600" />
+                  <div className="text-2xl font-bold text-red-600">
+                    {(stats as any)?.missingDocsCount || 0}
+                  </div>
+                </div>
+                <div className="text-sm text-gray-600">Missing Documents</div>
+                <div className="text-xs text-gray-500 mt-1">
+                  Click to view details
+                </div>
+              </div>
+            </DialogTrigger>
+            <DialogContent className="max-w-md">
+              <DialogHeader>
+                <DialogTitle>Missing Documents</DialogTitle>
+              </DialogHeader>
+              <div className="space-y-3">
+                {(stats as any)?.missingDocs?.length === 0 ? (
+                  <p className="text-green-600">All required documents have been collected!</p>
+                ) : (
+                  (stats as any)?.missingDocs?.map((doc: any, index: number) => (
+                    <div key={index} className="flex items-center justify-between p-3 bg-red-50 rounded-lg">
+                      <div>
+                        <div className="font-medium text-gray-900">{doc.vendorName}</div>
+                        <div className="text-sm text-red-600">Missing {doc.docType}</div>
+                      </div>
+                      <FileX className="w-4 h-4 text-red-500" />
+                    </div>
+                  ))
+                )}
+              </div>
+            </DialogContent>
+          </Dialog>
+          
+          <Dialog open={showExpiringCOIs} onOpenChange={setShowExpiringCOIs}>
+            <DialogTrigger asChild>
+              <div className="text-center cursor-pointer hover:bg-gray-50 p-2 rounded-lg transition-colors">
+                <div className="flex items-center justify-center space-x-2 mb-1">
+                  <Clock className="w-5 h-5 text-amber-600" />
+                  <div className="text-2xl font-bold text-amber-600">
+                    {(stats as any)?.expiringCOIsCount || 0}
+                  </div>
+                </div>
+                <div className="text-sm text-gray-600">Expiring COIs</div>
+                <div className="text-xs text-gray-500 mt-1">
+                  Within 30 days
+                </div>
+              </div>
+            </DialogTrigger>
+            <DialogContent className="max-w-md">
+              <DialogHeader>
+                <DialogTitle>Expiring COIs</DialogTitle>
+              </DialogHeader>
+              <div className="space-y-3">
+                {(stats as any)?.expiringCOIs?.length === 0 ? (
+                  <p className="text-green-600">No COIs expiring in the next 30 days!</p>
+                ) : (
+                  (stats as any)?.expiringCOIs?.map((coi: any, index: number) => (
+                    <div key={index} className="flex items-center justify-between p-3 bg-amber-50 rounded-lg">
+                      <div>
+                        <div className="font-medium text-gray-900">{coi.vendorName}</div>
+                        <div className="text-sm text-amber-600">
+                          Expires in {coi.daysUntilExpiry} days
+                        </div>
+                      </div>
+                      <Clock className="w-4 h-4 text-amber-500" />
+                    </div>
+                  ))
+                )}
+              </div>
+            </DialogContent>
+          </Dialog>
           
           <div className="text-center">
-            <div className="text-2xl font-bold text-gray-900">
-              {(stats as any)?.totalVendors || 0}
-            </div>
-            <div className="text-sm text-gray-600">Total Vendors</div>
-          </div>
-          
-          <div className="text-center">
-            <div className="text-2xl font-bold text-amber-600">
-              ${(stats as any)?.moneyAtRisk?.toLocaleString() || '0'}
+            <div className="flex items-center justify-center space-x-2 mb-1">
+              <AlertTriangle className="w-5 h-5 text-red-600" />
+              <div className="text-2xl font-bold text-red-600">
+                ${(stats as any)?.moneyAtRisk?.toLocaleString() || '0'}
+              </div>
             </div>
             <div className="text-sm text-gray-600">Money at Risk</div>
+            <div className="text-xs text-gray-500 mt-1">
+              Early pay discounts
+            </div>
           </div>
         </div>
       </CardContent>

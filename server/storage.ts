@@ -66,12 +66,15 @@ export interface IStorage {
 
   // Dashboard stats
   getDashboardStats(accountId: string): Promise<{
-    remindersSent: number;
-    docsReceived: number;
     totalVendors: number;
-    moneyAtRisk: number;
+    compliantVendors: number;
+    compliancePercentage: number;
+    missingDocsCount: number;
     missingDocs: Array<{ vendorName: string; docType: string; vendorId: string }>;
+    expiringCOIsCount: number;
     expiringCOIs: Array<{ vendorName: string; daysUntilExpiry: number; vendorId: string }>;
+    moneyAtRisk: number;
+    remindersSent: number;
   }>;
 }
 
@@ -291,35 +294,16 @@ export class DatabaseStorage implements IStorage {
 
   // Dashboard stats
   async getDashboardStats(accountId: string) {
-    // Get reminder count
-    const [reminderCount] = await db
-      .select({ count: count() })
-      .from(reminders)
-      .where(eq(reminders.accountId, accountId));
-
-    // Get document count
-    const [docCount] = await db
-      .select({ count: count() })
-      .from(documents)
-      .where(eq(documents.accountId, accountId));
-
-    // Get vendor count
+    // Get vendor count (from QuickBooks sync)
     const [vendorCount] = await db
       .select({ count: count() })
       .from(vendors)
-      .where(eq(vendors.accountId, accountId));
-
-    // Get money at risk (sum of discount amounts for unpaid bills)
-    const [moneyAtRiskResult] = await db
-      .select({ total: sum(bills.discountAmount) })
-      .from(bills)
       .where(and(
-        eq(bills.accountId, accountId),
-        eq(bills.isPaid, false),
-        sql`${bills.discountAmount} > 0`
+        eq(vendors.accountId, accountId),
+        sql`${vendors.qboId} IS NOT NULL`
       ));
 
-    // Get missing documents
+    // Get missing documents data
     const missingDocsData = await db
       .select({
         vendorName: vendors.name,
@@ -330,6 +314,7 @@ export class DatabaseStorage implements IStorage {
       .from(vendors)
       .where(and(
         eq(vendors.accountId, accountId),
+        sql`${vendors.qboId} IS NOT NULL`,
         sql`(${vendors.w9Status} = 'MISSING' OR ${vendors.coiStatus} = 'MISSING')`
       ));
 
@@ -354,6 +339,7 @@ export class DatabaseStorage implements IStorage {
       .from(vendors)
       .where(and(
         eq(vendors.accountId, accountId),
+        sql`${vendors.qboId} IS NOT NULL`,
         sql`${vendors.coiExpiry} IS NOT NULL AND ${vendors.coiExpiry} <= NOW() + INTERVAL '30 days'`
       ));
 
@@ -365,13 +351,38 @@ export class DatabaseStorage implements IStorage {
         : 0
     }));
 
+    // Calculate vendor compliance stats
+    const totalVendors = vendorCount.count || 0;
+    const vendorsWithMissingDocs = missingDocsData.length;
+    const compliantVendors = totalVendors - vendorsWithMissingDocs;
+    const compliancePercentage = totalVendors > 0 ? Math.round((compliantVendors / totalVendors) * 100) : 100;
+
+    // Get money at risk (sum of discount amounts for unpaid bills)
+    const [moneyAtRiskResult] = await db
+      .select({ total: sum(bills.discountAmount) })
+      .from(bills)
+      .where(and(
+        eq(bills.accountId, accountId),
+        eq(bills.isPaid, false),
+        sql`${bills.discountAmount} > 0`
+      ));
+
+    // Get reminder count
+    const [reminderCount] = await db
+      .select({ count: count() })
+      .from(reminders)
+      .where(eq(reminders.accountId, accountId));
+
     return {
-      remindersSent: reminderCount.count || 0,
-      docsReceived: docCount.count || 0,
-      totalVendors: vendorCount.count || 0,
-      moneyAtRisk: parseFloat(moneyAtRiskResult.total || '0'),
+      totalVendors,
+      compliantVendors,
+      compliancePercentage,
+      missingDocsCount: missingDocs.length,
       missingDocs,
+      expiringCOIsCount: expiringCOIsFormatted.length,
       expiringCOIs: expiringCOIsFormatted,
+      moneyAtRisk: parseFloat(moneyAtRiskResult.total || '0'),
+      remindersSent: reminderCount.count || 0,
     };
   }
 }
