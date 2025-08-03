@@ -221,20 +221,17 @@ class OCRService {
       
       // Fall back to general COI expiry date patterns
       const patterns = [
-        // MM/DD/YYYY or MM-DD-YYYY
-        /(?:expir[es]*|expires?|exp\.?|policy period|coverage period|effective)[\s\S]*?(\d{1,2}[\/\-]\d{1,2}[\/\-]\d{4})/gi,
+        // Non-ACORD format: Coverage type followed by two dates (effective, expiry) with support for YYYY-MM-DD format
+        /(?:general liability|automobile liability|workers compensation|umbrella|excess|professional liability)[\s\S]*?(\d{4}[\/\-]\d{1,2}[\/\-]\d{1,2})\s+(\d{4}[\/\-]\d{1,2}[\/\-]\d{1,2})/gi,
         
-        // YYYY-MM-DD
-        /(?:expir[es]*|expires?|exp\.?|policy period|coverage period|effective)[\s\S]*?(\d{4}[\/\-]\d{1,2}[\/\-]\d{1,2})/gi,
+        // Non-ACORD format: Coverage type followed by two dates (effective, expiry) with support for MM/DD/YYYY format
+        /(?:general liability|automobile liability|workers compensation|umbrella|excess|professional liability)[\s\S]*?(\d{1,2}[\/\-]\d{1,2}[\/\-]\d{4})\s+(\d{1,2}[\/\-]\d{1,2}[\/\-]\d{4})/gi,
         
-        // Written dates like "December 31, 2025"
-        /(?:expir[es]*|expires?|exp\.?|policy period|coverage period|effective)[\s\S]*?((?:january|february|march|april|may|june|july|august|september|october|november|december)\s+\d{1,2},?\s+\d{4})/gi,
+        // Date pairs in table format (effective date, expiry date) - broader pattern
+        /(\d{4}[\/\-]\d{1,2}[\/\-]\d{1,2})\s+(\d{4}[\/\-]\d{1,2}[\/\-]\d{1,2})(?=[\s\S]*?(?:\$|EACH|COMBINED|STATUTORY|Each Occurrence|Aggregate))/gi,
         
-        // "TO" date patterns in policy periods
-        /(?:policy period|coverage period|effective)[\s\S]*?to[\s\S]*?(\d{1,2}[\/\-]\d{1,2}[\/\-]\d{4})/gi,
-        
-        // Expiration table patterns
-        /expiration[\s\S]*?(\d{1,2}[\/\-]\d{1,2}[\/\-]\d{4})/gi,
+        // Date pairs in MM/DD/YYYY format
+        /(\d{1,2}[\/\-]\d{1,2}[\/\-]\d{4})\s+(\d{1,2}[\/\-]\d{1,2}[\/\-]\d{4})(?=[\s\S]*?(?:\$|EACH|COMBINED|STATUTORY|Each Occurrence|Aggregate))/gi,
         
         // ACORD 25 specific patterns
         // Policy EFF and Policy EXP column structure
@@ -243,14 +240,23 @@ class OCRService {
         // ACORD table row patterns - coverage type followed by dates
         /(?:general liability|automobile liability|workers compensation|umbrella|excess|professional liability)[\s\S]*?(\d{1,2}[\/\-]\d{1,2}[\/\-]\d{4})\s+(\d{1,2}[\/\-]\d{1,2}[\/\-]\d{4})/gi,
         
-        // ACORD date pairs in table format (effective date, expiry date)
-        /(\d{1,2}[\/\-]\d{1,2}[\/\-]\d{4})\s+(\d{1,2}[\/\-]\d{1,2}[\/\-]\d{4})(?=[\s\S]*?(?:\$|EACH|COMBINED|STATUTORY))/gi,
-        
-        // Policy EXP column specific
-        /policy\s+exp[\s\S]*?(\d{1,2}[\/\-]\d{1,2}[\/\-]\d{4})/gi,
-        
         // ACORD certificate expiry patterns
         /(?:mm\/dd\/yyyy)[\s\S]*?(\d{1,2}[\/\-]\d{1,2}[\/\-]\d{4})\s+(\d{1,2}[\/\-]\d{1,2}[\/\-]\d{4})/gi,
+        
+        // Specific "Expires" column patterns - look for dates in the "Expires" column
+        /expires[\s\S]*?(\d{4}[\/\-]\d{1,2}[\/\-]\d{1,2})/gi,
+        /expires[\s\S]*?(\d{1,2}[\/\-]\d{1,2}[\/\-]\d{4})/gi,
+        
+        // "TO" date patterns in policy periods
+        /(?:policy period|coverage period|effective)[\s\S]*?to[\s\S]*?(\d{1,2}[\/\-]\d{1,2}[\/\-]\d{4})/gi,
+        /(?:policy period|coverage period|effective)[\s\S]*?to[\s\S]*?(\d{4}[\/\-]\d{1,2}[\/\-]\d{1,2})/gi,
+        
+        // Expiration table patterns
+        /expiration[\s\S]*?(\d{1,2}[\/\-]\d{1,2}[\/\-]\d{4})/gi,
+        /expiration[\s\S]*?(\d{4}[\/\-]\d{1,2}[\/\-]\d{1,2})/gi,
+        
+        // Written dates like "December 31, 2025"
+        /(?:expir[es]*|expires?|exp\.?)[\s\S]*?((?:january|february|march|april|may|june|july|august|september|october|november|december)\s+\d{1,2},?\s+\d{4})/gi,
       ];
 
       const dates: Date[] = [];
@@ -259,21 +265,32 @@ class OCRService {
       for (const pattern of patterns) {
         const matches = Array.from(documentText.matchAll(pattern));
         for (const match of matches) {
-          // Handle patterns with multiple date groups (ACORD table format)
+          // Handle patterns with multiple date groups (effective date and expiry date pairs)
           if (match.length > 2) {
-            // For ACORD format: effective date (match[1]) and expiry date (match[2])
+            // For paired format: effective date (match[1]) and expiry date (match[2])
             // We want the expiry date (second date)
+            const effectiveDateStr = match[1];
             const expiryDateStr = match[2];
+            console.log(`Found date pair: effective=${effectiveDateStr}, expiry=${expiryDateStr}`);
+            
             const parsedDate = this.parseDate(expiryDateStr);
             if (parsedDate && this.isValidCOIDate(parsedDate)) {
               dates.push(parsedDate);
+              console.log(`Valid expiry date extracted: ${expiryDateStr} -> ${parsedDate.toISOString()}`);
+            } else {
+              console.log(`Invalid expiry date rejected: ${expiryDateStr}`);
             }
           } else {
             // Standard single date patterns
             const dateStr = match[1];
+            console.log(`Found single date: ${dateStr}`);
+            
             const parsedDate = this.parseDate(dateStr);
             if (parsedDate && this.isValidCOIDate(parsedDate)) {
               dates.push(parsedDate);
+              console.log(`Valid single date extracted: ${dateStr} -> ${parsedDate.toISOString()}`);
+            } else {
+              console.log(`Invalid single date rejected: ${dateStr}`);
             }
           }
         }
@@ -284,8 +301,14 @@ class OCRService {
         return null;
       }
 
+      // Log all found dates for debugging
+      console.log('All extracted expiry dates:', dates.map(d => d.toISOString()));
+
       // Return the latest date (most likely to be expiry)
-      return new Date(Math.max(...dates.map(d => d.getTime())));
+      const latestDate = new Date(Math.max(...dates.map(d => d.getTime())));
+      console.log('Selected expiry date (latest):', latestDate.toISOString());
+      
+      return latestDate;
 
     } catch (error) {
       console.error('Error extracting COI expiry date:', error);
