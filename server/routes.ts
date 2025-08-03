@@ -255,6 +255,31 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Get documents for a vendor (authenticated route)
+  app.get('/api/vendors/:id/documents', isAuthenticated, async (req: any, res) => {
+    try {
+      const { id } = req.params;
+      const userId = req.user.claims.sub;
+      const account = await storage.getAccountByUserId(userId);
+      
+      if (!account) {
+        return res.status(404).json({ message: 'Account not found' });
+      }
+
+      // Verify vendor belongs to the user's account
+      const vendor = await storage.getVendor(id);
+      if (!vendor || vendor.accountId !== account.id) {
+        return res.status(404).json({ message: 'Vendor not found' });
+      }
+
+      const documents = await storage.getDocumentsByVendorId(id);
+      res.json(documents);
+    } catch (error) {
+      console.error("Error fetching vendor documents:", error);
+      res.status(500).json({ message: "Failed to fetch vendor documents" });
+    }
+  });
+
   app.get('/api/vendors/:id', isAuthenticated, async (req: any, res) => {
     try {
       const { id } = req.params;

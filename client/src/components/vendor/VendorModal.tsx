@@ -72,6 +72,35 @@ export function VendorModal({
     }
   };
 
+  const handleDownloadCOI = async () => {
+    try {
+      // Find the COI document for this vendor
+      const response = await fetch(`/api/vendors/${vendor.id}/documents`);
+      if (!response.ok) {
+        throw new Error('Failed to fetch documents');
+      }
+      
+      const documents = await response.json();
+      const coiDocument = documents.find((doc: any) => doc.documentType === 'COI');
+      
+      if (!coiDocument) {
+        console.error('No COI document found for vendor');
+        return;
+      }
+      
+      // Download the document
+      const downloadUrl = `/api/documents/download/${encodeURIComponent(coiDocument.storageKey)}`;
+      const link = document.createElement('a');
+      link.href = downloadUrl;
+      link.download = coiDocument.filename;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+    } catch (error) {
+      console.error('Error downloading COI:', error);
+    }
+  };
+
   const handleSaveEdit = () => {
     onUpdateVendor({
       name: editForm.name,
@@ -360,7 +389,7 @@ export function VendorModal({
                       Send Reminder
                     </Button>
                   ) : (
-                    <Button size="sm" variant="outline">
+                    <Button size="sm" variant="outline" onClick={handleDownloadCOI}>
                       <Download className="w-4 h-4 mr-1" />
                       Download PDF
                     </Button>
