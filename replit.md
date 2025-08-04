@@ -125,6 +125,17 @@ The architecture prioritizes rapid development and deployment while maintaining 
 
 ## Recent Changes
 
+**August 4, 2025:**
+✅ **COMPLETED: Enhanced Bill Payment Terms Integration** - Real QuickBooks payment terms optimization
+✓ Added Terms entity to database schema with QBO payment terms structure (Net 30, Net 15, Date-driven)
+✓ Enhanced QuickBooks service to sync authentic payment terms from QBO API instead of hardcoded discounts
+✓ Updated bill sync to use actual vendor-specific payment terms with proper discount calculations
+✓ Implemented balance tracking using QBO's Balance field for accurate payment status (PAID vs OUTSTANDING)
+✓ Fixed dashboard stats calculation to show real money at risk ($72 available discounts)
+✓ Enhanced UI components to display payment terms info, balance status, and discount due dates
+✓ Updated cron service to include terms sync in automated QuickBooks synchronization
+✓ **System now provides accurate cash flow management with authentic payment terms data**
+
 **August 3, 2025:**
 ✓ **COMPLETED: COI Document Processing & Download System** - Full end-to-end functionality
 ✓ Fixed COI expiry date extraction to correctly identify 2026-08-03 dates (resolved timezone issues)

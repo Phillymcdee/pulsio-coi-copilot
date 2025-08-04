@@ -392,14 +392,16 @@ export class DatabaseStorage implements IStorage {
     const compliantVendors = totalVendors - vendorsWithMissingDocs;
     const compliancePercentage = totalVendors > 0 ? Math.round((compliantVendors / totalVendors) * 100) : 100;
 
-    // Get money at risk (sum of discount amounts for unpaid bills)
+    // Get money at risk (sum of discount amounts for outstanding bills with available discounts)
     const [moneyAtRiskResult] = await db
       .select({ total: sum(bills.discountAmount) })
       .from(bills)
       .where(and(
         eq(bills.accountId, accountId),
-        eq(bills.isPaid, false),
-        sql`${bills.discountAmount} > 0`
+        sql`${bills.balance} > 0`, // Use balance for accurate payment status
+        sql`${bills.discountAmount} > 0`,
+        sql`${bills.discountDueDate} > NOW()`, // Only include available discounts
+        eq(bills.discountCaptured, false)
       ));
 
     // Get reminder count
