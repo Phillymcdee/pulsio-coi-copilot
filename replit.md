@@ -1,272 +1,41 @@
 # Pulsio - Automated Document Collection for Contractors
 
 ## Overview
-
-Pulsio is a full-stack web application that automates the collection of subcontractor W-9s and Certificates of Insurance (COIs) for trade-service contractors using QuickBooks Online integration. The system helps contractors capture early-payment discounts, avoid IRS penalties, and reduce administrative overhead by automatically tracking missing documents and sending reminders.
-
-**Current Status:** ✅ **PRODUCTION READY** - Zero technical debt achieved!
-**MVP Achievement:** ✓ Complete production-ready SaaS platform with enterprise-grade architecture
-**Ready for Production:** ✅ Comprehensive production infrastructure with security, logging, and optimization
-**See:** `implementation_roadmap.md` for detailed completion plan.
+Pulsio is a full-stack web application designed to automate the collection of W-9s and Certificates of Insurance (COIs) from subcontractors for trade-service contractors. It integrates with QuickBooks Online to help users capture early-payment discounts, avoid IRS penalties, and reduce administrative overhead by tracking missing documents and sending automated reminders. The project aims to be a comprehensive, production-ready SaaS platform.
 
 ## User Preferences
-
 Preferred communication style: Simple, everyday language.
 
 ## System Architecture
+Pulsio is built as a modern full-stack monorepo application.
 
-This is a modern full-stack application built with a **monorepo structure** containing both client and server code:
-
-- **Frontend**: React with TypeScript, built using Vite
-- **Backend**: Node.js/Express server with TypeScript
-- **Database**: PostgreSQL via Neon with Drizzle ORM
-- **Authentication**: Replit OAuth integration
-- **Styling**: Tailwind CSS with shadcn/ui components
-- **State Management**: TanStack Query for server state
+**Core Technologies:**
+- **Frontend**: React with TypeScript (Vite)
+- **Backend**: Node.js/Express with TypeScript
+- **Database**: PostgreSQL (Neon) with Drizzle ORM
+- **Authentication**: Replit OAuth
+- **Styling**: Tailwind CSS with shadcn/ui
+- **State Management**: TanStack Query
 - **Real-time Updates**: Server-Sent Events (SSE)
 
-## Key Components
-
-### 1. Authentication & User Management
-- **Replit OAuth**: Integrated authentication using Replit's OIDC
-- **Session Management**: PostgreSQL-backed sessions with connect-pg-simple
-- **User Storage**: Mandatory user table structure for Replit Auth compatibility
-
-### 2. Database Schema (Drizzle ORM)
-- **Users**: Basic user profile and Stripe integration
-- **Accounts**: Company settings and QuickBooks tokens
-- **Vendors**: Contractor information synced from QuickBooks
-- **Documents**: W-9s and COI tracking with status and expiry
-- **Reminders**: Automated reminder history
-- **Bills**: Payment tracking for discount opportunities
-- **Timeline Events**: Activity feed for real-time updates
-
-### 3. External Service Integrations
-- **QuickBooks Online**: OAuth flow, vendor sync, bill tracking
-- **SendGrid**: Email notifications and reminders
-- **Twilio**: SMS reminder capabilities
-- **Stripe**: Subscription billing and payment processing
-- **Replit Object Storage**: Document file storage
-
-### 4. Frontend Architecture
-- **React Router**: Wouter for lightweight routing
-- **Component Library**: shadcn/ui components with Radix primitives
-- **Forms**: React Hook Form with Zod validation
-- **Responsive Design**: Mobile-first Tailwind CSS approach
-- **Real-time UI**: SSE integration for live updates
-
-### 5. Background Services
-- **Cron Jobs**: Automated QuickBooks sync, reminder scheduling, COI expiry checks
-- **Event Bus**: In-memory event system for real-time notifications
-- **File Processing**: Multer for document uploads with 10MB limit
-
-## Data Flow
-
-### 1. User Onboarding
-1. User signs up via Replit OAuth
-2. 4-step wizard: QuickBooks connection → reminder cadence → email templates → test & launch
-3. Initial QuickBooks sync pulls vendors and bills
-4. System begins monitoring for missing documents
-
-### 2. Document Collection Workflow
-1. Cron jobs sync new vendors/bills from QuickBooks every 20 minutes
-2. System identifies missing W-9s and COIs
-3. Automated reminders sent via email/SMS based on cadence settings
-4. Vendors upload documents via secure upload links
-5. Real-time notifications update dashboard via SSE
-
-### 3. Risk Management
-- COI expiry monitoring with proactive alerts
-- Early-payment discount tracking on bills
-- Compliance risk scoring based on missing documents
-- Timeline events for audit trail
+**Key Components & Features:**
+-   **Authentication & User Management**: Integrates Replit OAuth, PostgreSQL-backed sessions, and a mandatory user table structure.
+-   **Database Schema**: Manages users, accounts, QuickBooks-synced vendors, documents (W-9s, COIs with status/expiry), reminders, bills, and timeline events for activity tracking.
+-   **Frontend Architecture**: Utilizes Wouter for routing, shadcn/ui for components, React Hook Form with Zod for forms, and a mobile-first responsive design with Tailwind CSS. Real-time updates are driven by SSE.
+-   **Background Services**: Employs cron jobs for automated QuickBooks sync, reminder scheduling, and COI expiry checks. Includes an in-memory event bus and Multer for document uploads.
+-   **Document Collection Workflow**: Automatically syncs vendors and bills from QuickBooks, identifies missing documents, sends automated reminders via email/SMS, allows vendors to upload documents securely, and provides real-time dashboard updates.
+-   **Risk Management**: Monitors COI expiry, tracks early-payment discount opportunities on bills, and assesses compliance risk based on missing documents, with an audit trail via timeline events.
+-   **Monorepo Structure**: Centralizes client and server code for streamlined development and deployment.
+-   **Drizzle ORM**: Ensures type-safe database queries.
+-   **Server-Sent Events (SSE)**: Chosen for simpler real-time updates compared to WebSockets.
+-   **Replit-Native Integration**: Leverages Replit's authentication and object storage services.
+-   **Background Jobs**: Uses node-cron for reliable scheduled tasks without external dependencies.
+-   **Data Integrity Solution**: Implements a hybrid data model for vendor information, separating QuickBooks source fields from active fields and using override flags to preserve user manual edits during QuickBooks syncs.
 
 ## External Dependencies
-
-### Required Environment Variables
-- `DATABASE_URL`: Neon PostgreSQL connection string
-- `SESSION_SECRET`: Session encryption key
-- `QBO_CLIENT_ID`, `QBO_CLIENT_SECRET`: QuickBooks OAuth credentials
-- `SENDGRID_API_KEY`, `FROM_EMAIL`: Email service configuration
-- `TWILIO_*`: SMS service credentials (optional)
-- `STRIPE_SECRET_KEY`, `VITE_STRIPE_PUBLIC_KEY`: Payment processing
-- `REPLIT_DOMAINS`: Required for Replit OAuth
-
-### Third-party Services
-- **Neon Database**: Serverless PostgreSQL hosting
-- **QuickBooks Online API**: Vendor and bill data source
-- **SendGrid**: Transactional email delivery
-- **Twilio**: SMS messaging (optional feature)
-- **Stripe**: Subscription billing platform
-- **Replit Object Storage**: Document file storage
-
-## Deployment Strategy
-
-### Development
-- `npm run dev`: Starts development server with TSX for hot reloading
-- Vite dev server with HMR for frontend
-- Express server with middleware for API routes
-
-### Production Build
-- `npm run build`: Vite build for client + esbuild bundle for server
-- `npm start`: Runs production server from `dist/` directory
-- Database migrations via `npm run db:push` (Drizzle Kit)
-
-### Key Architectural Decisions
-
-1. **Monorepo Structure**: Simplifies development and deployment by keeping client/server code together
-2. **Drizzle ORM**: Type-safe database queries with PostgreSQL dialect
-3. **Server-Sent Events**: Chosen over WebSockets for simpler real-time updates
-4. **Replit-Native**: Leverages Replit's built-in authentication and services
-5. **Background Jobs**: Node-cron for reliable scheduled tasks without external dependencies
-6. **File Storage**: Replit Object Storage eliminates need for external S3 setup
-
-The architecture prioritizes rapid development and deployment while maintaining type safety and real-time user experience. The system is designed to handle the critical business workflow of document collection with automated reminders and compliance tracking.
-
-## Recent Changes
-
-**August 4, 2025:**
-✅ **COMPLETED: Enhanced Bill Payment Terms Integration** - Real QuickBooks payment terms optimization
-✓ Added Terms entity to database schema with QBO payment terms structure (Net 30, Net 15, Date-driven)
-✓ Enhanced QuickBooks service to sync authentic payment terms from QBO API instead of hardcoded discounts
-✓ Updated bill sync to use actual vendor-specific payment terms with proper discount calculations
-✓ Implemented balance tracking using QBO's Balance field for accurate payment status (PAID vs OUTSTANDING)
-✓ Fixed dashboard stats calculation to show real money at risk ($72 available discounts)
-✓ Enhanced UI components to display payment terms info, balance status, and discount due dates
-✓ Updated cron service to include terms sync in automated QuickBooks synchronization
-✓ **System now provides accurate cash flow management with authentic payment terms data**
-
-**August 3, 2025:**
-✓ **COMPLETED: COI Document Processing & Download System** - Full end-to-end functionality
-✓ Fixed COI expiry date extraction to correctly identify 2026-08-03 dates (resolved timezone issues)
-✓ Updated OCR regex patterns to distinguish between effective and expiry dates
-✓ Resolved document download corruption issue (30-byte fake files)
-✓ Implemented proper local file storage system for development mode
-✓ Added comprehensive download functionality with error handling and debugging
-✓ Created vendor documents API endpoint with authentication
-✓ Enhanced document storage service with local filesystem support in development
-
-**July 27, 2025:**
-✓ **COMPLETED: Advanced OCR Document Processing** - Full COI expiry date extraction
-✓ Built comprehensive OCR service supporting PDF, images, and text files
-✓ Implemented intelligent date parsing with multiple format recognition
-✓ Added real-time expiry date extraction from COI documents using Tesseract.js
-✓ Enhanced database schema with extracted_text storage for audit trails
-✓ Integrated OCR seamlessly into document upload workflow
-✓ Created fallback mechanism: OCR extraction → 1-year default if extraction fails
-
-**July 26, 2025:**
-✓ Completed comprehensive implementation status assessment
-✓ Identified 6 critical TypeScript errors blocking functionality  
-✓ Created detailed implementation roadmap (`implementation_roadmap.md`)
-✓ Fixed ALL TypeScript errors in cron service and onboarding page
-✓ Completed real QuickBooks API integration with proper OAuth callback handling
-✓ Implemented functional automated reminder system with email/SMS
-✓ Added comprehensive cron job automation for vendor sync and reminders
-✓ Enhanced storage interface with getAllAccounts method
-✓ Added COI expiry warning system with proactive notifications
-✓ **COMPLETED: Replit Object Storage implementation** - Full document upload and storage system
-✓ Created comprehensive DocumentStorageService with real file uploads
-✓ Built public vendor upload portal with drag-and-drop interface
-✓ Added secure document download API with proper authorization
-
-## Implementation Priorities
-
-**Completed (Week 1):**
-1. ✓ Fixed TypeScript errors in `server/services/cron.ts` (all 5 diagnostics resolved)
-2. ✓ Fixed onboarding type error in `client/src/pages/onboarding.tsx`
-3. ✓ Completed QuickBooks API integration with real data sync
-4. ✓ Built functional automated reminder system with proper cron jobs
-5. ✓ Enhanced email/SMS services with COI expiry warnings
-
-**Recently Completed (July 30, 2025):**
-✓ **BREAKTHROUGH: Real QuickBooks contractor sync working!**
-✓ Fixed vendor name parsing to use DisplayName instead of Name field
-✓ Successfully imported 4 real contractors from QuickBooks sandbox
-✓ Dashboard populated with authentic vendor data and missing document tracking
-✓ Bills sync working - $44.82 in early payment discounts identified
-✓ Live activity timeline showing real sync events
-
-**COMPLETED (July 30, 2025 - Email Configuration):**
-✓ **SendGrid fully configured for production with complete customization**
-✓ SENDGRID_API_KEY and FROM_EMAIL environment variables properly set
-✓ Added custom sender name (`fromName`) field for personalized email branding
-✓ Enhanced email service to support "Custom Business Name <email@domain.com>" format
-✓ All email templates support full customization with merge tags
-✓ Professional email addresses: compliance@pulsio.ai for automated notifications
-
-**COMPLETED (July 30, 2025 - Navigation & Vendor Management):**
-✓ **Fixed all navigation issues and added complete vendor management functionality**
-✓ Created comprehensive vendors page with search and filtering capabilities
-✓ Fixed settings page runtime errors and TypeScript typing issues  
-✓ Added complete "Add Vendor" functionality with professional modal form
-✓ Implemented manual vendor creation with backend API endpoint
-✓ Fixed database schema to support manually added vendors (nullable qboId)
-✓ **Resolved reminder system authentication and account lookup issues**
-✓ Fixed email service to use correct account retrieval method
-✓ **Confirmed reminder emails working - successfully delivered to user inbox**
-✓ Enhanced SendGrid service with detailed debugging and error logging
-
-**COMPLETED (July 31, 2025 - Advanced Vendor Management & QB Sync):**
-✓ **Comprehensive SMS Functionality Implementation**
-✓ Added SMS reminder buttons for vendors with phone numbers
-✓ Enhanced vendor modal with separate email/SMS reminder options
-✓ Configured Twilio integration for production SMS sending
-✓ **Advanced Vendor Data Management System**
-✓ Implemented hybrid QB/user data model to prevent sync conflicts
-✓ Added override flags for name, email, phone when user edits
-✓ QuickBooks sync now preserves user manual edits
-✓ Added visual indicators for QB-synced vs user-overridden data
-✓ **Complete Vendor Editing Interface**
-✓ Full vendor edit capability in modal header
-✓ Inline editing for all vendor contact information
-✓ Smart conflict resolution with QB data source indicators
-✓ Professional UX with override status and revert options
-
-**System Architecture Enhancement:**
-- **Data Integrity Solution**: Separate QB source fields (qboName, qboEmail, qboPhone) from active fields
-- **Conflict Resolution**: Override flags prevent QB sync from overwriting user edits
-- **User Experience**: Clear visual indicators show data source and override status
-- **Best Practice Implementation**: QB as source of truth with user override capability
-
-**COMPLETED (July 31, 2025 - Template Visibility Enhancement):**
-✓ **Enhanced Settings Page with Default Template Previews**
-✓ Added visual display of default email and SMS templates in settings
-✓ Users can now see exactly what templates are being used before customization
-✓ Improved UX with highlighted merge tags in template previews
-✓ Email template preview shows formatted HTML appearance
-✓ SMS template preview shows character count within 160 limit
-
-**COMPLETED (August 1, 2025 - PRODUCTION READINESS BREAKTHROUGH):**
-✅ **ZERO TECHNICAL DEBT ACHIEVED** - Complete enterprise-grade production infrastructure
-✅ **Critical Blocking Issues Resolved:**
-  • Fixed all 13 TypeScript compilation errors across dashboard components, Stripe service, and subscribe page
-  • Eliminated React performance warnings and infinite re-render loops
-  • Implemented comprehensive security hardening with rate limiting and helmet.js
-✅ **Production Infrastructure Implementation:**
-  • Replaced 119+ console.log statements with structured production logging system
-  • Added request/response logging with sensitive data sanitization
-  • Implemented specialized logging for auth, QuickBooks, documents, and cron operations
-  • JSON logging for production, readable format for development
-✅ **Security Hardening Complete:**
-  • Express rate limiting: 100 requests per 15-minute window
-  • Helmet.js security headers for XSS and clickjacking protection
-  • Gzip compression for performance optimization
-  • API endpoint protection with consistent error handling
-✅ **Advanced Type Safety:**
-  • Created comprehensive shared types in `/shared/types.ts`
-  • Proper TypeScript annotations for all API responses and React components
-  • Clean compilation with zero TypeScript errors
-
-**Previous OCR System (Completed July 31):**
-✓ **PRODUCTION BREAKTHROUGH** - Complete PDF processing system operational
-✓ PDF-to-image + Tesseract.js OCR pipeline for insurance documents
-✓ Real-world testing with filled ACORD 25 PDFs (466KB)
-✓ **System Status:** Ready to process 90%+ of real insurance documents
-
-**Current System Status:**
-- Cron service is fully operational with automated sync and reminders
-- QuickBooks integration uses real API calls with proper token handling
-- Email and SMS reminder systems are complete and functional
-- Background jobs run automatically every 20 minutes for sync, daily for reminders
-- Template management system provides clear visibility of default templates
+-   **Neon Database**: Serverless PostgreSQL hosting.
+-   **QuickBooks Online API**: For syncing vendor and bill data.
+-   **SendGrid**: For transactional email delivery and notifications.
+-   **Twilio**: For SMS messaging (optional feature).
+-   **Stripe**: For subscription billing and payment processing.
+-   **Replit Object Storage**: For storing uploaded documents.
