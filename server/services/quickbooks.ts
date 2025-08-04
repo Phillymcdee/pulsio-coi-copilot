@@ -17,7 +17,22 @@ interface QBOBill {
   VendorRef: { value: string };
   DocNumber?: string;
   TotalAmt: number;
+  Balance?: number;
   DueDate?: string;
+  SalesTermRef?: { value: string; name?: string };
+}
+
+interface QBOTerms {
+  Id: string;
+  Name: string;
+  Type: 'STANDARD' | 'DATE_DRIVEN';
+  DueDays?: number;
+  DiscountPercent?: number;
+  DiscountDays?: number;
+  DayOfMonthDue?: number;
+  DiscountDayOfMonth?: number;
+  DueNextMonthDays?: number;
+  Active?: boolean;
 }
 
 export class QuickBooksService {
@@ -294,6 +309,110 @@ export class QuickBooksService {
     }
   }
 
+  // Calculate discount info based on terms
+  private calculateDiscountInfo(totalAmount: number, terms: QBOTerms | null, billDate: Date, dueDate: Date | null) {
+    if (!terms || !terms.DiscountPercent || !terms.DiscountDays || terms.DiscountPercent <= 0) {
+      return {
+        discountPercent: null,
+        discountAmount: null,
+        discountDueDate: null,
+      };
+    }
+
+    const discountPercent = terms.DiscountPercent;
+    const discountAmount = totalAmount * (discountPercent / 100);
+    
+    let discountDueDate: Date | null = null;
+    
+    if (terms.Type === 'STANDARD' && terms.DiscountDays) {
+      // For standard terms, discount days are from bill date
+      discountDueDate = new Date(billDate);
+      discountDueDate.setDate(discountDueDate.getDate() + terms.DiscountDays);
+    } else if (terms.Type === 'DATE_DRIVEN' && terms.DiscountDayOfMonth) {
+      // For date-driven terms, discount due on specific day of month
+      discountDueDate = new Date(billDate.getFullYear(), billDate.getMonth(), terms.DiscountDayOfMonth);
+      
+      // If the discount day has passed this month, move to next month
+      if (discountDueDate <= billDate) {
+        discountDueDate.setMonth(discountDueDate.getMonth() + 1);
+      }
+    }
+
+    return {
+      discountPercent: discountPercent.toString(),
+      discountAmount: discountAmount.toString(),
+      discountDueDate,
+    };
+  }
+
+  // Sync payment terms from QuickBooks
+  async syncTerms(accountId: string): Promise<void> {
+    const account = await storage.getAccountByUserId(accountId);
+    if (!account?.qboAccessToken || !account.qboCompanyId) {
+      throw new Error('QuickBooks not connected');
+    }
+
+    try {
+      const response = await fetch(
+        `${this.baseUrl}/v3/company/${account.qboCompanyId}/query?query=SELECT * FROM Term WHERE Active = true`,
+        {
+          headers: {
+            'Authorization': `Bearer ${account.qboAccessToken}`,
+            'Accept': 'application/json',
+          },
+        }
+      );
+
+      if (!response.ok) {
+        throw new Error('Failed to sync terms from QuickBooks');
+      }
+
+      const data = await response.json();
+      const qboTerms: QBOTerms[] = data.QueryResponse?.Term || [];
+
+      console.log(`Found ${qboTerms.length} payment terms in QuickBooks for account ${account.companyName}`);
+
+      for (const qboTerm of qboTerms) {
+        const existingTerm = await storage.getTermsByQboId(account.id, qboTerm.Id);
+        
+        const termData = {
+          accountId: account.id,
+          qboId: qboTerm.Id,
+          name: qboTerm.Name,
+          type: qboTerm.Type,
+          dueDays: qboTerm.DueDays || null,
+          discountPercent: qboTerm.DiscountPercent?.toString() || null,
+          discountDays: qboTerm.DiscountDays || null,
+          dayOfMonthDue: qboTerm.DayOfMonthDue || null,
+          discountDayOfMonth: qboTerm.DiscountDayOfMonth || null,
+          dueNextMonthDays: qboTerm.DueNextMonthDays || null,
+          active: qboTerm.Active !== false,
+          qboLastSyncAt: new Date(),
+        };
+
+        if (!existingTerm) {
+          console.log(`Creating new payment term: ${qboTerm.Name}`);
+          await storage.createTerms(termData);
+        } else {
+          console.log(`Updating existing payment term: ${qboTerm.Name}`);
+          await storage.updateTerms(existingTerm.id, termData);
+        }
+      }
+
+      // Create timeline event for terms sync
+      await storage.createTimelineEvent({
+        accountId: account.id,
+        eventType: 'qbo_sync',
+        title: 'Payment terms sync completed',
+        description: `${qboTerms.length} payment terms synced`,
+      });
+
+    } catch (error) {
+      console.error('Error syncing terms:', error);
+      throw error;
+    }
+  }
+
   async syncBills(accountId: string): Promise<void> {
     // Handle both userId and accountId - check if it's a userId first
     let account = await storage.getAccountByUserId(accountId);
@@ -332,6 +451,34 @@ export class QuickBooksService {
 
         const existingBill = await storage.getBillByQboId(account.id, qboBill.Id);
         
+        // Get payment terms if available
+        let termsId: string | null = null;
+        let qboTerms: QBOTerms | null = null;
+        
+        if (qboBill.SalesTermRef?.value) {
+          const existingTerms = await storage.getTermsByQboId(account.id, qboBill.SalesTermRef.value);
+          if (existingTerms) {
+            termsId = existingTerms.id;
+            // Convert database terms to QBO format for calculation
+            qboTerms = {
+              Id: existingTerms.qboId,
+              Name: existingTerms.name,
+              Type: existingTerms.type as 'STANDARD' | 'DATE_DRIVEN',
+              DueDays: existingTerms.dueDays || undefined,
+              DiscountPercent: existingTerms.discountPercent ? parseFloat(existingTerms.discountPercent) : undefined,
+              DiscountDays: existingTerms.discountDays || undefined,
+              DayOfMonthDue: existingTerms.dayOfMonthDue || undefined,
+              DiscountDayOfMonth: existingTerms.discountDayOfMonth || undefined,
+              DueNextMonthDays: existingTerms.dueNextMonthDays || undefined,
+              Active: existingTerms.active || undefined,
+            };
+          }
+        }
+
+        const billDate = new Date(); // Use current date as bill date
+        const dueDate = qboBill.DueDate ? new Date(qboBill.DueDate) : null;
+        const discountInfo = this.calculateDiscountInfo(qboBill.TotalAmt, qboTerms, billDate, dueDate);
+        
         if (!existingBill) {
           console.log(`Creating new bill: ${qboBill.DocNumber || qboBill.Id} for vendor ${vendor.name}`);
           await storage.createBill({
@@ -340,13 +487,27 @@ export class QuickBooksService {
             qboId: qboBill.Id,
             billNumber: qboBill.DocNumber || null,
             amount: qboBill.TotalAmt.toString(),
-            dueDate: qboBill.DueDate ? new Date(qboBill.DueDate) : null,
-            // Assume 2% discount if paid within 10 days for demonstration
-            discountPercent: '2.00',
-            discountAmount: (qboBill.TotalAmt * 0.02).toString(),
-            discountDueDate: qboBill.DueDate 
-              ? new Date(new Date(qboBill.DueDate).getTime() - 10 * 24 * 60 * 60 * 1000)
-              : null,
+            balance: (qboBill.Balance || qboBill.TotalAmt).toString(),
+            dueDate,
+            termsId,
+            discountPercent: discountInfo.discountPercent,
+            discountAmount: discountInfo.discountAmount,
+            discountDueDate: discountInfo.discountDueDate,
+            isPaid: qboBill.Balance === 0,
+            qboLastSyncAt: new Date(),
+          });
+        } else {
+          // Update existing bill with latest balance and payment status
+          console.log(`Updating existing bill: ${qboBill.DocNumber || qboBill.Id} for vendor ${vendor.name}`);
+          await storage.updateBill(existingBill.id, {
+            balance: (qboBill.Balance || qboBill.TotalAmt).toString(),
+            isPaid: qboBill.Balance === 0,
+            paidDate: qboBill.Balance === 0 && !existingBill.isPaid ? new Date() : existingBill.paidDate,
+            termsId,
+            discountPercent: discountInfo.discountPercent,
+            discountAmount: discountInfo.discountAmount,
+            discountDueDate: discountInfo.discountDueDate,
+            qboLastSyncAt: new Date(),
           });
         }
       }

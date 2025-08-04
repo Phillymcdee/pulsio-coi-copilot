@@ -113,7 +113,7 @@ export function VendorModal({
       document.body.removeChild(link);
     } catch (error) {
       console.error(`Error downloading ${docType}:`, error);
-      alert(`Error downloading ${docType}: ${error.message}`);
+      alert(`Error downloading ${docType}: ${error instanceof Error ? error.message : 'Unknown error'}`);
     }
   };
 
@@ -440,9 +440,24 @@ export function VendorModal({
                             <div className="font-medium text-gray-900">
                               ${parseFloat(bill.amount).toLocaleString()}
                             </div>
+                            {bill.balance && parseFloat(bill.balance) > 0 && (
+                              <div className="text-sm text-gray-500">
+                                Balance: ${parseFloat(bill.balance).toFixed(2)}
+                              </div>
+                            )}
+                            {bill.balance && parseFloat(bill.balance) === 0 && (
+                              <div className="text-sm text-green-600">
+                                ✓ Paid
+                              </div>
+                            )}
                             {bill.discountAmount && parseFloat(bill.discountAmount) > 0 && !bill.discountCaptured && (
                               <div className="text-sm text-amber-600">
                                 ${parseFloat(bill.discountAmount).toFixed(2)} discount available
+                                {bill.discountDueDate && (
+                                  <span className="text-xs text-gray-500 block">
+                                    Until {new Date(bill.discountDueDate).toLocaleDateString()}
+                                  </span>
+                                )}
                               </div>
                             )}
                             {bill.discountCaptured && (

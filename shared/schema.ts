@@ -122,6 +122,25 @@ export const reminders = pgTable("reminders", {
   deliveredAt: timestamp("delivered_at"),
 });
 
+// Terms table for QuickBooks payment terms
+export const terms = pgTable("terms", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  accountId: varchar("account_id").references(() => accounts.id).notNull(),
+  qboId: varchar("qbo_id").notNull(),
+  name: varchar("name").notNull(),
+  type: varchar("type").notNull(), // STANDARD or DATE_DRIVEN
+  dueDays: integer("due_days"),
+  discountPercent: decimal("discount_percent", { precision: 5, scale: 2 }),
+  discountDays: integer("discount_days"),
+  dayOfMonthDue: integer("day_of_month_due"),
+  discountDayOfMonth: integer("discount_day_of_month"),
+  dueNextMonthDays: integer("due_next_month_days"),
+  active: boolean("active").default(true),
+  qboLastSyncAt: timestamp("qbo_last_sync_at"),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
 // Bills table for QuickBooks sync
 export const bills = pgTable("bills", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
@@ -130,13 +149,17 @@ export const bills = pgTable("bills", {
   qboId: varchar("qbo_id").notNull(),
   billNumber: varchar("bill_number"),
   amount: decimal("amount", { precision: 10, scale: 2 }).notNull(),
+  balance: decimal("balance", { precision: 10, scale: 2 }).notNull(),
   dueDate: timestamp("due_date"),
+  termsId: varchar("terms_id").references(() => terms.id),
+  // Calculated fields based on terms
   discountPercent: decimal("discount_percent", { precision: 5, scale: 2 }),
   discountAmount: decimal("discount_amount", { precision: 10, scale: 2 }),
   discountDueDate: timestamp("discount_due_date"),
   isPaid: boolean("is_paid").default(false),
   paidDate: timestamp("paid_date"),
   discountCaptured: boolean("discount_captured").default(false),
+  qboLastSyncAt: timestamp("qbo_last_sync_at"),
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),
 });
@@ -164,7 +187,13 @@ export const accountsRelations = relations(accounts, ({ one, many }) => ({
   documents: many(documents),
   reminders: many(reminders),
   bills: many(bills),
+  terms: many(terms),
   timelineEvents: many(timelineEvents),
+}));
+
+export const termsRelations = relations(terms, ({ one, many }) => ({
+  account: one(accounts, { fields: [terms.accountId], references: [accounts.id] }),
+  bills: many(bills),
 }));
 
 export const vendorsRelations = relations(vendors, ({ one, many }) => ({
@@ -188,6 +217,7 @@ export const remindersRelations = relations(reminders, ({ one }) => ({
 export const billsRelations = relations(bills, ({ one }) => ({
   vendor: one(vendors, { fields: [bills.vendorId], references: [vendors.id] }),
   account: one(accounts, { fields: [bills.accountId], references: [accounts.id] }),
+  terms: one(terms, { fields: [bills.termsId], references: [terms.id] }),
 }));
 
 export const timelineEventsRelations = relations(timelineEvents, ({ one }) => ({
@@ -227,6 +257,12 @@ export const insertReminderSchema = createInsertSchema(reminders).omit({
   deliveredAt: true,
 });
 
+export const insertTermsSchema = createInsertSchema(terms).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
 export const insertBillSchema = createInsertSchema(bills).omit({
   id: true,
   createdAt: true,
@@ -249,6 +285,8 @@ export type InsertDocument = z.infer<typeof insertDocumentSchema>;
 export type Document = typeof documents.$inferSelect;
 export type InsertReminder = z.infer<typeof insertReminderSchema>;
 export type Reminder = typeof reminders.$inferSelect;
+export type InsertTerms = z.infer<typeof insertTermsSchema>;
+export type Terms = typeof terms.$inferSelect;
 export type InsertBill = z.infer<typeof insertBillSchema>;
 export type Bill = typeof bills.$inferSelect;
 export type InsertTimelineEvent = z.infer<typeof insertTimelineEventSchema>;

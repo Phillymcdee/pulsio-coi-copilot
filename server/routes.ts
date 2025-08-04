@@ -150,6 +150,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       setTimeout(async () => {
         try {
           console.log(`Starting initial QuickBooks sync for account: ${accountId}`);
+          await quickbooksService.syncTerms(accountId as string);
           await quickbooksService.syncVendors(accountId as string);
           await quickbooksService.syncBills(accountId as string);
           
@@ -428,12 +429,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       console.log(`Manual sync requested for account: ${account.companyName}`);
       
-      // Run sync
+      // Run sync with enhanced functionality
+      await quickbooksService.syncTerms(account.id);
       await quickbooksService.syncVendors(account.id);
       await quickbooksService.syncBills(account.id);
       
-      // Get updated vendor count
+      // Get updated counts
       const vendors = await storage.getVendorsByAccountId(account.id);
+      const terms = await storage.getTermsByAccountId(account.id);
       
       // Emit SSE event
       eventBus.emit('qbo.sync', { 
@@ -443,7 +446,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       res.json({ 
         message: 'Sync completed successfully',
-        vendorCount: vendors.length 
+        vendorCount: vendors.length,
+        termsCount: terms.length,
+        details: 'Payment terms, vendors, and bills synced with enhanced discount calculations'
       });
     } catch (error) {
       console.error("Error in manual QBO sync:", error);

@@ -57,6 +57,7 @@ export class CronService {
         if (account.qboAccessToken && account.qboCompanyId) {
           try {
             const vendorsBefore = await storage.getVendorsByAccountId(account.id);
+            await quickbooksService.syncTerms(account.id); // Sync payment terms first
             await quickbooksService.syncVendors(account.id); // Use account.id, not userId
             await quickbooksService.syncBills(account.id);
             const vendorsAfter = await storage.getVendorsByAccountId(account.id);

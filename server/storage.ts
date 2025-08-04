@@ -5,6 +5,7 @@ import {
   documents,
   reminders,
   bills,
+  terms,
   timelineEvents,
   type User,
   type UpsertUser,
@@ -16,6 +17,8 @@ import {
   type InsertDocument,
   type Reminder,
   type InsertReminder,
+  type Terms,
+  type InsertTerms,
   type Bill,
   type InsertBill,
   type TimelineEvent,
@@ -274,6 +277,38 @@ export class DatabaseStorage implements IStorage {
       .from(bills)
       .where(and(eq(bills.accountId, accountId), eq(bills.qboId, qboId)));
     return bill;
+  }
+
+  // Terms operations
+  async getTermsByAccountId(accountId: string): Promise<Terms[]> {
+    const termsList = await db
+      .select()
+      .from(terms)
+      .where(eq(terms.accountId, accountId))
+      .orderBy(desc(terms.createdAt));
+    return termsList;
+  }
+
+  async getTermsByQboId(accountId: string, qboId: string): Promise<Terms | undefined> {
+    const [term] = await db
+      .select()
+      .from(terms)
+      .where(and(eq(terms.accountId, accountId), eq(terms.qboId, qboId)));
+    return term;
+  }
+
+  async createTerms(termsData: InsertTerms): Promise<Terms> {
+    const [term] = await db.insert(terms).values(termsData).returning();
+    return term;
+  }
+
+  async updateTerms(id: string, updates: Partial<InsertTerms>): Promise<Terms> {
+    const [term] = await db
+      .update(terms)
+      .set({ ...updates, updatedAt: new Date() })
+      .where(eq(terms.id, id))
+      .returning();
+    return term;
   }
 
   // Timeline operations
