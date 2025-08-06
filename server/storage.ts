@@ -422,6 +422,52 @@ export class DatabaseStorage implements IStorage {
       remindersSent: reminderCount.count || 0,
     };
   }
+
+  async getBillsWithDiscountInfo(accountId: string) {
+    const billsData = await db
+      .select({
+        billId: bills.id,
+        billNumber: bills.billNumber,
+        amount: bills.amount,
+        balance: bills.balance,
+        discountAmount: bills.discountAmount,
+        discountDueDate: bills.discountDueDate,
+        discountCaptured: bills.discountCaptured,
+        createdAt: bills.createdAt,
+        vendorId: bills.vendorId,
+        vendorName: vendors.name,
+        vendorW9Status: vendors.w9Status,
+        vendorCoiStatus: vendors.coiStatus,
+        termsName: terms.name,
+      })
+      .from(bills)
+      .innerJoin(vendors, eq(bills.vendorId, vendors.id))
+      .leftJoin(terms, eq(bills.termsId, terms.id))
+      .where(and(
+        eq(bills.accountId, accountId),
+        sql`${bills.balance} > 0`, // Only outstanding bills
+        sql`${bills.discountAmount} > 0` // Only bills with discounts
+      ))
+      .orderBy(bills.discountDueDate);
+
+    return billsData.map(bill => ({
+      id: bill.billId,
+      billNumber: bill.billNumber || `BILL-${bill.billId.slice(-6)}`,
+      vendorName: bill.vendorName,
+      amount: parseFloat(bill.amount.toString()),
+      balance: parseFloat(bill.balance.toString()),
+      discountAmount: parseFloat((bill.discountAmount || 0).toString()),
+      discountDueDate: bill.discountDueDate?.toISOString() || '',
+      discountCaptured: bill.discountCaptured,
+      paymentTerms: bill.termsName || 'Standard',
+      vendorW9Status: bill.vendorW9Status,
+      vendorCoiStatus: bill.vendorCoiStatus,
+      canCaptureDiscount: !bill.discountCaptured && bill.discountDueDate && bill.discountDueDate > new Date(),
+      daysUntilDiscount: bill.discountDueDate ? 
+        Math.ceil((bill.discountDueDate.getTime() - new Date().getTime()) / (1000 * 60 * 60 * 24)) : 0,
+      createdAt: (bill.createdAt || new Date()).toISOString(),
+    }));
+  }
 }
 
 export const storage = new DatabaseStorage();

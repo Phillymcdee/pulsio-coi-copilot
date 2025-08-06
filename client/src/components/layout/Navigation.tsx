@@ -64,6 +64,11 @@ export function Navigation() {
       icon: Users,
     },
     {
+      href: "/bills",
+      label: "Bills",
+      icon: FileText,
+    },
+    {
       href: "/settings",
       label: "Settings",
       icon: Settings,

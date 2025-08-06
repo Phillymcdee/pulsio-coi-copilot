@@ -256,6 +256,24 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Bills routes
+  app.get('/api/bills', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const account = await storage.getAccountByUserId(userId);
+      
+      if (!account) {
+        return res.status(404).json({ message: 'Account not found' });
+      }
+
+      const bills = await storage.getBillsWithDiscountInfo(account.id);
+      res.json(bills);
+    } catch (error) {
+      console.error("Error fetching bills:", error);
+      res.status(500).json({ message: "Failed to fetch bills" });
+    }
+  });
+
   // Get documents for a vendor (authenticated route)
   app.get('/api/vendors/:id/documents', isAuthenticated, async (req: any, res) => {
     try {
