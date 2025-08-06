@@ -425,50 +425,93 @@ export function VendorModal({
                 </div>
                 <div className="divide-y divide-gray-200">
                   {vendor.bills && vendor.bills.length > 0 ? (
-                    vendor.bills.slice(0, 5).map((bill: any, index: number) => (
-                      <div key={index} className="p-4 hover:bg-gray-50 transition-colors">
-                        <div className="flex items-center justify-between">
-                          <div>
-                            <div className="font-medium text-gray-900">
-                              {bill.billNumber || `Bill #${bill.id.slice(-6)}`}
-                            </div>
-                            <div className="text-sm text-gray-600">
-                              {new Date(bill.createdAt).toLocaleDateString()}
-                            </div>
-                          </div>
-                          <div className="text-right">
-                            <div className="font-medium text-gray-900">
-                              ${parseFloat(bill.amount).toLocaleString()}
-                            </div>
-                            {bill.balance && parseFloat(bill.balance) > 0 && (
-                              <div className="text-sm text-gray-500">
-                                Balance: ${parseFloat(bill.balance).toFixed(2)}
+                    vendor.bills.slice(0, 5).map((bill: any, index: number) => {
+                      const isOverdue = bill.balance && parseFloat(bill.balance) > 0;
+                      const hasDiscount = bill.discountAmount && parseFloat(bill.discountAmount) > 0 && !bill.discountCaptured;
+                      const discountExpired = hasDiscount && bill.discountDueDate && new Date(bill.discountDueDate) < new Date();
+                      const daysUntilDiscount = hasDiscount && bill.discountDueDate ? 
+                        Math.ceil((new Date(bill.discountDueDate).getTime() - new Date().getTime()) / (1000 * 60 * 60 * 24)) : 0;
+                      
+                      return (
+                        <div key={index} className="p-4 hover:bg-gray-50 transition-colors">
+                          <div className="space-y-2">
+                            {/* Bill Header */}
+                            <div className="flex items-center justify-between">
+                              <div className="font-medium text-gray-900">
+                                {bill.billNumber || `Bill #${bill.id.slice(-6)}`}
                               </div>
-                            )}
-                            {bill.balance && parseFloat(bill.balance) === 0 && (
-                              <div className="text-sm text-green-600">
-                                ✓ Paid
+                              <div className="text-right">
+                                <div className="font-semibold text-gray-900">
+                                  ${parseFloat(bill.amount).toLocaleString()}
+                                </div>
+                                {bill.balance && parseFloat(bill.balance) > 0 && (
+                                  <div className="text-sm text-gray-500">
+                                    Balance: ${parseFloat(bill.balance).toFixed(2)}
+                                  </div>
+                                )}
+                                {bill.balance && parseFloat(bill.balance) === 0 && (
+                                  <div className="text-sm font-medium text-green-600">
+                                    ✓ Paid in Full
+                                  </div>
+                                )}
                               </div>
-                            )}
-                            {bill.discountAmount && parseFloat(bill.discountAmount) > 0 && !bill.discountCaptured && (
-                              <div className="text-sm text-amber-600">
-                                ${parseFloat(bill.discountAmount).toFixed(2)} discount available
-                                {bill.discountDueDate && (
-                                  <span className="text-xs text-gray-500 block">
-                                    Until {new Date(bill.discountDueDate).toLocaleDateString()}
+                            </div>
+
+                            {/* Payment Terms & Discount Info */}
+                            {hasDiscount && !discountExpired && (
+                              <div className="bg-amber-50 border border-amber-200 rounded-md p-3">
+                                <div className="flex items-center justify-between mb-1">
+                                  <span className="text-sm font-medium text-amber-800">
+                                    Early Payment Discount
                                   </span>
+                                  <span className="text-lg font-bold text-amber-600">
+                                    ${parseFloat(bill.discountAmount).toFixed(2)}
+                                  </span>
+                                </div>
+                                <div className="text-sm text-amber-700">
+                                  {daysUntilDiscount > 1 ? (
+                                    <span>Pay within {daysUntilDiscount} days to save ${parseFloat(bill.discountAmount).toFixed(2)}</span>
+                                  ) : daysUntilDiscount === 1 ? (
+                                    <span className="font-medium">⚡ Last day to save ${parseFloat(bill.discountAmount).toFixed(2)}!</span>
+                                  ) : (
+                                    <span className="font-medium">⚡ Discount expires today!</span>
+                                  )}
+                                </div>
+                                {bill.discountDueDate && (
+                                  <div className="text-xs text-amber-600 mt-1">
+                                    Discount expires: {new Date(bill.discountDueDate).toLocaleDateString()}
+                                  </div>
                                 )}
                               </div>
                             )}
-                            {bill.discountCaptured && (
-                              <div className="text-sm text-green-600">
-                                ${parseFloat(bill.discountAmount).toFixed(2)} discount captured
+
+                            {hasDiscount && discountExpired && (
+                              <div className="bg-gray-50 border border-gray-200 rounded-md p-3">
+                                <div className="text-sm text-gray-600">
+                                  ${parseFloat(bill.discountAmount).toFixed(2)} discount expired on {new Date(bill.discountDueDate).toLocaleDateString()}
+                                </div>
                               </div>
                             )}
+
+                            {bill.discountCaptured && (
+                              <div className="bg-green-50 border border-green-200 rounded-md p-3">
+                                <div className="text-sm font-medium text-green-700">
+                                  ✓ ${parseFloat(bill.discountAmount).toFixed(2)} discount captured
+                                </div>
+                              </div>
+                            )}
+
+                            {/* Bill Details */}
+                            <div className="text-xs text-gray-500 flex justify-between">
+                              <span>Issued: {new Date(bill.createdAt).toLocaleDateString()}</span>
+                              {bill.paymentTerms && (
+                                <span>Terms: {bill.paymentTerms}</span>
+                              )}
+                            </div>
                           </div>
                         </div>
-                      </div>
-                    ))
+                      );
+                    })
                   ) : (
                     <div className="p-8 text-center text-gray-500">
                       <FileText className="w-8 h-8 mx-auto mb-2 text-gray-400" />
