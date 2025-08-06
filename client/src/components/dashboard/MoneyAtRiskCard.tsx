@@ -49,28 +49,14 @@ export function MoneyAtRiskCard() {
           </div>
           
           {moneyAtRisk > 0 ? (
-            <div className="space-y-2">
-              <div className="text-xs text-gray-500">
-                Early payment discounts available
-              </div>
-              <div className="text-sm text-gray-600">
-                Based on actual payment terms from QuickBooks
-              </div>
-              <div className="text-xs text-gray-500 text-center mt-2">
-                Collect missing W-9s and COIs to secure these discounts
-              </div>
+            <div className="text-sm text-gray-600">
+              Collect missing documents to secure discounts
             </div>
           ) : (
             <div className="text-sm text-green-600">
-              All available discounts secured!
+              All available discounts secured
             </div>
           )}
-        </div>
-        
-        <div className="mt-4 pt-4 border-t border-gray-200">
-          <div className="text-xs text-gray-500 text-center">
-            Capture these discounts by collecting missing docs
-          </div>
         </div>
       </CardContent>
     </Card>
