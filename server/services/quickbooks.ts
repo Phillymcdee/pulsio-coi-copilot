@@ -172,6 +172,14 @@ export class QuickBooksService {
       throw new Error('QuickBooks not connected');
     }
 
+    // Ensure token is valid before making API calls
+    account = await this.ensureValidToken(account);
+    
+    // Additional check after token refresh
+    if (!account) {
+      throw new Error('QuickBooks account not found after token refresh');
+    }
+
     try {
       const query = "SELECT * FROM Vendor";
       console.log(`Querying QuickBooks with: ${query}`);
@@ -345,11 +353,52 @@ export class QuickBooksService {
     };
   }
 
+  // Helper method to check and refresh token if needed
+  private async ensureValidToken(account: any): Promise<any> {
+    // Check if token is expired or will expire soon (within 5 minutes)
+    const now = new Date();
+    const expiryTime = new Date(account.qboTokenExpiry);
+    const fiveMinutesFromNow = new Date(now.getTime() + 5 * 60 * 1000);
+
+    if (expiryTime <= fiveMinutesFromNow && account.qboRefreshToken) {
+      console.log('Token expired or expiring soon, refreshing...');
+      try {
+        const tokens = await this.refreshAccessToken(account.qboRefreshToken);
+        const updatedAccount = await storage.updateAccount(account.id, {
+          qboAccessToken: tokens.accessToken,
+          qboRefreshToken: tokens.refreshToken,
+          qboTokenExpiry: new Date(Date.now() + 3600 * 1000), // 1 hour
+        });
+        console.log('Token refreshed successfully');
+        return updatedAccount;
+      } catch (error) {
+        console.error('Failed to refresh token:', error);
+        throw new Error('QuickBooks token refresh failed. Please reconnect your QuickBooks account.');
+      }
+    }
+
+    return account;
+  }
+
   // Sync payment terms from QuickBooks
   async syncTerms(accountId: string): Promise<void> {
-    const account = await storage.getAccountByUserId(accountId);
+    // Handle both userId and accountId - check if it's a userId first
+    let account = await storage.getAccountByUserId(accountId);
+    if (!account) {
+      // If not found by userId, try to get by accountId directly
+      const allAccounts = await storage.getAllAccounts();
+      account = allAccounts.find(acc => acc.id === accountId);
+    }
     if (!account?.qboAccessToken || !account.qboCompanyId) {
       throw new Error('QuickBooks not connected');
+    }
+
+    // Ensure token is valid before making API calls
+    account = await this.ensureValidToken(account);
+    
+    // Additional check after token refresh
+    if (!account) {
+      throw new Error('QuickBooks account not found after token refresh');
     }
 
     try {
@@ -364,7 +413,24 @@ export class QuickBooksService {
       );
 
       if (!response.ok) {
-        throw new Error('Failed to sync terms from QuickBooks');
+        const errorText = await response.text();
+        console.error(`QuickBooks API error in syncTerms: ${response.status} - ${errorText}`);
+        
+        if (response.status === 401) {
+          // Token might still be invalid, try refreshing one more time
+          if (account.qboRefreshToken) {
+            console.log('Received 401, attempting token refresh...');
+            const tokens = await this.refreshAccessToken(account.qboRefreshToken);
+            await storage.updateAccount(account.id, {
+              qboAccessToken: tokens.accessToken,
+              qboRefreshToken: tokens.refreshToken,
+              qboTokenExpiry: new Date(Date.now() + 3600 * 1000), // 1 hour
+            });
+            // Retry the request
+            return this.syncTerms(accountId);
+          }
+        }
+        throw new Error(`Failed to sync terms from QuickBooks: ${response.status} - ${errorText}`);
       }
 
       const data = await response.json();
@@ -425,6 +491,14 @@ export class QuickBooksService {
       throw new Error('QuickBooks not connected');
     }
 
+    // Ensure token is valid before making API calls
+    account = await this.ensureValidToken(account);
+    
+    // Additional check after token refresh
+    if (!account) {
+      throw new Error('QuickBooks account not found after token refresh');
+    }
+
     try {
       const response = await fetch(
         `${this.baseUrl}/v3/company/${account.qboCompanyId}/query?query=SELECT * FROM Bill WHERE MetaData.LastUpdatedTime > '2024-01-01'`,
@@ -437,7 +511,24 @@ export class QuickBooksService {
       );
 
       if (!response.ok) {
-        throw new Error('Failed to sync bills from QuickBooks');
+        const errorText = await response.text();
+        console.error(`QuickBooks API error in syncBills: ${response.status} - ${errorText}`);
+        
+        if (response.status === 401) {
+          // Token might still be invalid, try refreshing one more time
+          if (account.qboRefreshToken) {
+            console.log('Received 401 in syncBills, attempting token refresh...');
+            const tokens = await this.refreshAccessToken(account.qboRefreshToken);
+            await storage.updateAccount(account.id, {
+              qboAccessToken: tokens.accessToken,
+              qboRefreshToken: tokens.refreshToken,
+              qboTokenExpiry: new Date(Date.now() + 3600 * 1000), // 1 hour
+            });
+            // Retry the request
+            return this.syncBills(accountId);
+          }
+        }
+        throw new Error(`Failed to sync bills from QuickBooks: ${response.status} - ${errorText}`);
       }
 
       const data = await response.json();
