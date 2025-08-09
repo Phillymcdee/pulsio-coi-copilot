@@ -145,19 +145,34 @@ const billAmounts = [
   7200.00, 1980.50, 3850.75, 1120.40, 2480.60, 5400.20, 840.00
 ];
 
-export async function createDemoData(): Promise<void> {
+export async function createDemoData(accountId?: string): Promise<void> {
   try {
     console.log('🚀 Creating realistic demo data...');
 
-    // Get the user's account
-    const accounts = await storage.getAllAccounts();
-    if (accounts.length === 0) {
-      console.error('❌ No accounts found. Please set up an account first.');
-      return;
+    let account;
+    if (accountId) {
+      // Use specific account ID if provided
+      account = await storage.getAccount(accountId);
+      if (!account) {
+        console.error(`❌ Account ${accountId} not found.`);
+        return;
+      }
+    } else {
+      // Find account for Phil McDonald (the logged-in user)
+      const user = await storage.getUserByEmail('phil.mcdonald100@gmail.com');
+      if (!user) {
+        console.error('❌ User phil.mcdonald100@gmail.com not found.');
+        return;
+      }
+      
+      account = await storage.getAccountByUserId(user.id);
+      if (!account) {
+        console.error('❌ No account found for the logged-in user.');
+        return;
+      }
     }
     
-    const account = accounts[0];
-    console.log(`📊 Creating demo data for account: ${account.companyName}`);
+    console.log(`📊 Creating demo data for account: ${account.companyName} (ID: ${account.id})`);
 
     // Create payment terms first (2%/10 net 30)
     console.log('💰 Creating payment terms...');
