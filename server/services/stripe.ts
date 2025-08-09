@@ -223,35 +223,71 @@ export class StripeService {
     // Could send failure notification email here
   }
 
-  async getPricing(): Promise<{ starter: any; pro: any; agency: any }> {
-    // Return static pricing info - in production, you might fetch from Stripe
+  async getPricing(): Promise<{ starter: any; growth: any; pro: any }> {
+    // Return vendor-based pricing info - in production, you might fetch from Stripe
     return {
       starter: {
         id: 'starter',
         name: 'Starter',
-        price: 99,
+        price: 59,
+        annualPrice: 49,
+        vendorLimit: 25,
         currency: 'usd',
         interval: 'month',
-        features: ['200 reminders/month', 'Email & SMS reminders', 'Basic dashboard', 'QuickBooks sync'],
+        features: [
+          'Up to 25 vendors',
+          'Unlimited W-9 & COI requests',
+          'Automated reminders & expiry tracking',
+          'QuickBooks Online sync (Plus & Advanced)',
+          'ROI dashboard (money at risk vs. saved)',
+          'Email & in-app support',
+          'Document storage & management'
+        ],
         priceId: process.env.STRIPE_PRICE_STARTER || 'price_starter',
+      },
+      growth: {
+        id: 'growth',
+        name: 'Growth',
+        price: 139,
+        annualPrice: 119,
+        vendorLimit: 75,
+        currency: 'usd',
+        interval: 'month',
+        features: [
+          'Up to 75 vendors',
+          'Unlimited W-9 & COI requests',
+          'Automated reminders & expiry tracking',
+          'QuickBooks Online sync (Plus & Advanced)',
+          'ROI dashboard (money at risk vs. saved)',
+          'Priority email & phone support',
+          'Document storage & management',
+          'Custom email templates',
+          'Advanced reporting & analytics'
+        ],
+        priceId: process.env.STRIPE_PRICE_GROWTH || 'price_growth',
       },
       pro: {
         id: 'pro',
         name: 'Pro',
-        price: 199,
+        price: 259,
+        annualPrice: 219,
+        vendorLimit: 150,
         currency: 'usd',
         interval: 'month',
-        features: ['500 reminders/month', 'Multi-location support', 'Advanced templates', 'Priority support'],
+        features: [
+          'Up to 150 vendors',
+          'Unlimited W-9 & COI requests',
+          'Automated reminders & expiry tracking',
+          'QuickBooks Online sync (Plus & Advanced)',
+          'ROI dashboard (money at risk vs. saved)',
+          'Priority email & phone support',
+          'Document storage & management',
+          'Custom email & SMS templates',
+          'Advanced reporting & analytics',
+          'Multi-location support',
+          'Dedicated account manager'
+        ],
         priceId: process.env.STRIPE_PRICE_PRO || 'price_pro',
-      },
-      agency: {
-        id: 'agency',
-        name: 'Agency',
-        price: 399,
-        currency: 'usd',
-        interval: 'month',
-        features: ['Unlimited reminders', 'White-label options', 'Custom integrations', 'Dedicated support'],
-        priceId: process.env.STRIPE_PRICE_AGENCY || 'price_agency',
       },
     };
   }

@@ -30,7 +30,7 @@ export default function Landing() {
                 Start Free Trial
                 <ArrowRight className="ml-2 w-5 h-5" />
               </Button>
-              <Button variant="outline" size="lg" className="text-lg px-8" onClick={() => window.location.href = '/pricing'}>
+              <Button variant="outline" size="lg" className="text-lg px-8" onClick={() => window.location.href = '/subscribe'}>
                 View Pricing
               </Button>
             </div>

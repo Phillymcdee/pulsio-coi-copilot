@@ -116,6 +116,10 @@ const faqs = [
 ];
 
 export default function Pricing() {
+  // Redirect to subscribe page which has the official pricing with Stripe integration
+  if (typeof window !== 'undefined') {
+    window.location.href = '/subscribe';
+  }
   return (
     <div className="min-h-screen bg-gray-50">
       <Navigation />

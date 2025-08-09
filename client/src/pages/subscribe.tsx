@@ -9,6 +9,7 @@ import { isUnauthorizedError } from "@/lib/authUtils";
 import type { PricingData } from "@shared/types";
 import type { Account } from "@shared/schema";
 import { Navigation } from "@/components/layout/Navigation";
+import { Footer } from "@/components/layout/Footer";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -211,8 +212,8 @@ export default function Subscribe() {
             Choose Your Pulsio Plan
           </h1>
           <p className="text-xl text-gray-600 max-w-2xl mx-auto">
-            Automate your document collection and start capturing discounts today.
-            All plans include QuickBooks sync, email & SMS reminders, and secure document storage.
+            Automate your vendor document collection and start capturing discounts today.
+            Pricing based on vendor count - upgrade anytime as your business grows.
           </p>
         </div>
 
@@ -240,7 +241,7 @@ export default function Subscribe() {
         {/* Pricing Cards */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
           {pricing && Object.entries(pricing).map(([planId, plan]) => {
-            const isPopular = planId === 'pro';
+            const isPopular = planId === 'growth';
             const isCurrentPlan = account && 'plan' in account && account.plan === planId;
             
             return (
@@ -260,13 +261,16 @@ export default function Subscribe() {
                 <CardHeader className="text-center pb-4">
                   <div className="mb-4">
                     {planId === 'starter' && <Zap className="w-12 h-12 text-primary mx-auto" />}
-                    {planId === 'pro' && <Users className="w-12 h-12 text-primary mx-auto" />}
-                    {planId === 'agency' && <Shield className="w-12 h-12 text-primary mx-auto" />}
+                    {planId === 'growth' && <Users className="w-12 h-12 text-primary mx-auto" />}
+                    {planId === 'pro' && <Shield className="w-12 h-12 text-primary mx-auto" />}
                   </div>
                   <CardTitle className="text-2xl">{plan.name}</CardTitle>
                   <div className="mt-4">
                     <span className="text-4xl font-bold">${plan.price}</span>
                     <span className="text-gray-600">/month</span>
+                  </div>
+                  <div className="text-sm text-gray-500 mt-2">
+                    Up to {plan.vendorLimit} vendors
                   </div>
                 </CardHeader>
                 
@@ -304,6 +308,24 @@ export default function Subscribe() {
           })}
         </div>
 
+        {/* ROI Guarantee */}
+        <div className="mt-16 mb-12">
+          <Card className="bg-green-50 border-green-200 max-w-4xl mx-auto">
+            <CardContent className="p-8 text-center">
+              <div className="flex items-center justify-center mb-4">
+                <Shield className="w-12 h-12 text-green-600" />
+              </div>
+              <h3 className="text-2xl font-bold text-green-800 mb-4">30-Day ROI Guarantee</h3>
+              <p className="text-green-700 text-lg mb-4">
+                If Pulsio doesn't save you more than your subscription cost within 30 days, we'll refund your first month completely.
+              </p>
+              <p className="text-green-600 text-sm">
+                Most customers save $500-2,000+ monthly from early-payment discounts and avoided penalties.
+              </p>
+            </CardContent>
+          </Card>
+        </div>
+
         {/* FAQ Section */}
         <div className="mt-16">
           <h2 className="text-2xl font-bold text-center text-gray-900 mb-8">
@@ -314,14 +336,14 @@ export default function Subscribe() {
             <div>
               <h3 className="font-semibold text-gray-900 mb-2">Can I change plans anytime?</h3>
               <p className="text-gray-600 text-sm">
-                Yes, you can upgrade or downgrade your plan at any time. Changes take effect immediately.
+                Yes, you can upgrade or downgrade your plan at any time. Changes take effect immediately and are prorated.
               </p>
             </div>
             
             <div>
-              <h3 className="font-semibold text-gray-900 mb-2">What payment methods do you accept?</h3>
+              <h3 className="font-semibold text-gray-900 mb-2">What if I have more vendors than my plan allows?</h3>
               <p className="text-gray-600 text-sm">
-                We accept all major credit cards including Visa, MasterCard, American Express, and Discover.
+                You can upgrade anytime. We'll track additional vendors and show ROI impact to help you decide when to upgrade.
               </p>
             </div>
             
@@ -341,6 +363,8 @@ export default function Subscribe() {
           </div>
         </div>
       </div>
+      
+      <Footer />
     </div>
   );
 }

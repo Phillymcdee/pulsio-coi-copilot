@@ -20,9 +20,13 @@ export interface DashboardStats {
 export interface PricingPlan {
   name: string;
   price: number;
+  annualPrice?: number;
+  vendorLimit?: number;
   priceId: string;
   features: string[];
   popular?: boolean;
+  currency?: string;
+  interval?: string;
 }
 
 export interface PricingData {
