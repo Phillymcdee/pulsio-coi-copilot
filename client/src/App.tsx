@@ -15,6 +15,10 @@ import Bills from "@/pages/bills";
 import Settings from "@/pages/settings";
 import Subscribe from "@/pages/subscribe";
 import Upload from "@/pages/upload";
+import Signup from "@/pages/signup";
+import LandingPage from "@/components/marketing/LandingPage";
+import ROICalculator from "@/components/marketing/ROICalculator";
+import { GoogleAnalytics } from "@/components/analytics/GoogleAnalytics";
 
 function Router() {
   const { isAuthenticated, isLoading } = useAuth();
@@ -23,10 +27,13 @@ function Router() {
     <Switch>
       {/* Public routes - accessible without authentication */}
       <Route path="/upload/:vendorId" component={Upload} />
+      <Route path="/marketing" component={LandingPage} />
+      <Route path="/roi-calculator" component={ROICalculator} />
+      <Route path="/signup" component={Signup} />
       
       {isLoading || !isAuthenticated ? (
         <>
-          <Route path="/" component={Landing} />
+          <Route path="/" component={LandingPage} />
         </>
       ) : (
         <>
@@ -49,6 +56,7 @@ function App() {
   return (
     <QueryClientProvider client={queryClient}>
       <TooltipProvider>
+        <GoogleAnalytics />
         <Toaster />
         <Router />
       </TooltipProvider>
