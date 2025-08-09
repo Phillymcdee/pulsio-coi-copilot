@@ -195,7 +195,7 @@ export async function createDemoData(accountId?: string): Promise<void> {
     });
 
     console.log('👷 Creating contractors...');
-    const createdVendors = [];
+    const createdVendors: any[] = [];
     
     for (const contractor of contractors) {
       const vendor = await storage.createVendor({

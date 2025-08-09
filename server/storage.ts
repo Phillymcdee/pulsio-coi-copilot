@@ -30,10 +30,12 @@ import { eq, and, desc, asc, sql, count, sum } from "drizzle-orm";
 export interface IStorage {
   // User operations (mandatory for Replit Auth)
   getUser(id: string): Promise<User | undefined>;
+  getUserByEmail(email: string): Promise<User | undefined>;
   upsertUser(user: UpsertUser): Promise<User>;
   updateUserStripeInfo(id: string, stripeCustomerId: string, stripeSubscriptionId?: string): Promise<User>;
 
   // Account operations
+  getAccount(accountId: string): Promise<Account | undefined>;
   getAccountByUserId(userId: string): Promise<Account | undefined>;
   getAllAccounts(): Promise<Account[]>;
   createAccount(account: InsertAccount): Promise<Account>;
@@ -62,6 +64,10 @@ export interface IStorage {
   createBill(bill: InsertBill): Promise<Bill>;
   updateBill(id: string, updates: Partial<InsertBill>): Promise<Bill>;
   getBillByQboId(accountId: string, qboId: string): Promise<Bill | undefined>;
+  getBillsWithDiscountInfo(accountId: string): Promise<any[]>;
+
+  // Terms operations
+  createTerms(terms: InsertTerms): Promise<Terms>;
 
   // Timeline operations
   getTimelineEventsByAccountId(accountId: string, limit?: number): Promise<TimelineEvent[]>;
@@ -85,6 +91,11 @@ export class DatabaseStorage implements IStorage {
   // User operations
   async getUser(id: string): Promise<User | undefined> {
     const [user] = await db.select().from(users).where(eq(users.id, id));
+    return user;
+  }
+
+  async getUserByEmail(email: string): Promise<User | undefined> {
+    const [user] = await db.select().from(users).where(eq(users.email, email));
     return user;
   }
 
