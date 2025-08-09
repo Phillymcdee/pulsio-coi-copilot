@@ -16,6 +16,10 @@ import Settings from "@/pages/settings";
 import Subscribe from "@/pages/subscribe";
 import Upload from "@/pages/upload";
 import Signup from "@/pages/signup";
+import Security from "@/pages/security";
+import Pricing from "@/pages/pricing";
+import Competitive from "@/pages/competitive";
+import Outbound from "@/pages/outbound";
 import LandingPage from "@/components/marketing/LandingPage";
 import ROICalculator from "@/components/marketing/ROICalculator";
 import { GoogleAnalytics } from "@/components/analytics/GoogleAnalytics";
@@ -30,6 +34,10 @@ function Router() {
       <Route path="/marketing" component={LandingPage} />
       <Route path="/roi-calculator" component={ROICalculator} />
       <Route path="/signup" component={Signup} />
+      <Route path="/security" component={Security} />
+      <Route path="/pricing" component={Pricing} />
+      <Route path="/competitive" component={Competitive} />
+      <Route path="/outbound" component={Outbound} />
       
       {isLoading || !isAuthenticated ? (
         <>

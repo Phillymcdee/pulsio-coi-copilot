@@ -1,6 +1,7 @@
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { CheckCircle, DollarSign, Clock, Shield, ArrowRight } from "lucide-react";
+import { Footer } from "@/components/layout/Footer";
 
 export default function Landing() {
   return (
@@ -29,8 +30,8 @@ export default function Landing() {
                 Start Free Trial
                 <ArrowRight className="ml-2 w-5 h-5" />
               </Button>
-              <Button variant="outline" size="lg" className="text-lg px-8">
-                Watch Demo
+              <Button variant="outline" size="lg" className="text-lg px-8" onClick={() => window.location.href = '/pricing'}>
+                View Pricing
               </Button>
             </div>
             <p className="text-sm text-gray-500 mt-4">
@@ -215,6 +216,8 @@ export default function Landing() {
           </p>
         </div>
       </div>
+      
+      <Footer />
     </div>
   );
 }
