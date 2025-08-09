@@ -1,6 +1,5 @@
 
 import { storage } from '../server/storage';
-import { quickbooksService } from '../server/services/quickbooks';
 
 // Realistic contractor names and data
 const contractors = [

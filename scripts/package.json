@@ -3,7 +3,7 @@
   "name": "pulsio-scripts",
   "version": "1.0.0",
   "scripts": {
-    "create-demo": "tsx create-demo-data.ts"
+    "create-demo": "cd .. && tsx scripts/create-demo-data.ts"
   },
   "dependencies": {
     "tsx": "^4.7.1"
