@@ -165,11 +165,17 @@ export async function createDemoData(accountId?: string): Promise<void> {
         return;
       }
       
+      console.log(`✅ Found user: ${user.firstName} ${user.lastName} (ID: ${user.id})`);
+      
       account = await storage.getAccountByUserId(user.id);
       if (!account) {
         console.error('❌ No account found for the logged-in user.');
         return;
       }
+      
+      // Check current vendor count
+      const currentVendors = await storage.getVendorsByAccountId(account.id);
+      console.log(`📊 Current vendor count for account: ${currentVendors.length}`);
     }
     
     console.log(`📊 Creating demo data for account: ${account.companyName} (ID: ${account.id})`);
