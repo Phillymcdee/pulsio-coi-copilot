@@ -18,6 +18,36 @@ export default function LandingPage() {
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-blue-50 to-white">
+      {/* Header Navigation */}
+      <div className="bg-white border-b border-gray-200">
+        <div className="container mx-auto px-4">
+          <div className="flex justify-between items-center py-4">
+            <div className="flex items-center">
+              <div className="w-8 h-8 bg-blue-600 rounded-lg flex items-center justify-center mr-3">
+                <CheckCircle className="w-5 h-5 text-white" />
+              </div>
+              <span className="text-xl font-bold text-gray-900">Pulsio</span>
+            </div>
+            <div className="flex items-center gap-4">
+              <Button 
+                variant="ghost" 
+                onClick={() => window.location.href = '/api/login'}
+                data-testid="button-login"
+              >
+                Log In
+              </Button>
+              <Button 
+                onClick={() => window.location.href = '/api/login'}
+                data-testid="button-signup"
+                className="bg-blue-600 hover:bg-blue-700"
+              >
+                Sign Up
+              </Button>
+            </div>
+          </div>
+        </div>
+      </div>
+
       {/* Hero Section */}
       <section className="container mx-auto px-4 py-16 text-center">
         <div className="max-w-4xl mx-auto">
