@@ -1,0 +1,61 @@
+Absolutely—let’s anchor this storyboard with ProAdvisor Paula’s perspective to make the narrative deeply relatable and strategic:
+
+⸻
+
+ProAdvisor Paula’s Story: Before & After Pulsio (Mid-Project Vendor Addition)
+
+⸻
+
+Before Pulsio — A Day in Paula’s Shoes
+
+3:00 PM, a Wednesday afternoon
+Paula, a trusted ProAdvisor for a mid-sized HVAC contracting client, gets an urgent call. A subcontractor just quit, and the client has hired a new drywall subcontractor at the last minute.
+
+Paula’s pain:
+	•	She opens QuickBooks but sees no W‑9 or COI on file for the new sub.
+	•	She sends an email and texts the GC to chase the missing W‑9 and COI.
+	•	The subcontractor replies late with blurry photos of documents.
+	•	Without clear documentation, she holds off finalizing vendor profile—payments stall, client gets frustrated.
+	•	Worst of all: she has no dashboard showing lost early‑payment discounts or insurance risk.
+
+Throughout the afternoon, Paula is reactive and stressed—dragged into compliance firefighting mid-project, impacting cash flow and goodwill.
+
+Contextual evidence: GCs are responsible for ensuring subs have proper certifications and records—and failures here result in chaos on-site.  ￼ ￼
+
+⸻
+
+After Pulsio — Paula Controls the Workflow
+
+3:00 PM, same day
+Paula logs into Pulsio to check vendor status. She spots the new subcontractor automatically flagged as non-compliant—W‑9 and COI missing.
+
+With one click:
+	•	Pulsio triggers automated W‑9 and COI requests to the sub.
+	•	Reminder emails are queued until documentation arrives.
+	•	The vendor responses sync directly back into QBO, updating Paula’s dashboard.
+	•	Immediately, she sees the Money at Risk widget turn green—no risk of delay or lost discounts.
+
+Paula replies confidently to the client: “All vendor docs are now in place; payments will proceed smoothly, and your early-payment discount is secure.”
+
+Evidence-backed rationale:
+	•	Subcontractor onboarding is critical and repetitive across projects, and lacking it, GCs lose time and risk non-compliance.  ￼
+	•	Automating W-9/COI collection upfront prevents duplicate admin and ensures documentation readiness.
+
+⸻
+
+Why the Audience (Paula) Cares
+
+Pain Point	Pulsio Fix
+Vendor docs chasing mid-project	Automated requests/refill, no manual follow-ups
+No visibility on compliance delays	Dashboard flags live missing documents, minimizing surprises
+Client relations at risk	Proactive documentation protects client cash & trust
+Disjoint compliance & financials	“Money at Risk” ties compliance to real-dollar outcomes
+
+
+⸻
+
+Takeaway
+
+This narrative reframes Pulsio not as a piece of compliance software, but as Paula’s control center—taking her from reactive chaos to proactive confidence, with clarity into tax, legal, and cashflow outcomes.
+
+Let me know if you’d like this storyboard turned into a visual slide, flow diagram, or partner-facing asset—so it’s ready to help convert advisors like Paula.
