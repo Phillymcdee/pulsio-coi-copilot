@@ -42,6 +42,7 @@ export function Wizard({
   const [currentStep, setCurrentStep] = useState(account ? 2 : 1);
   const { toast } = useToast();
   const queryClient = useQueryClient();
+  const isJobberMode = import.meta.env.VITE_FEATURE_JOBBER === 'true';
 
   const { register, handleSubmit, watch, setValue } = useForm({
     defaultValues: {
@@ -72,6 +73,25 @@ export function Wizard({
     },
   });
 
+  // Jobber connection mutation
+  const jobberConnectionMutation = useMutation({
+    mutationFn: async () => {
+      const response = await apiRequest("GET", "/api/jobber/auth-url");
+      const data = await response.json();
+      return data.authUrl;
+    },
+    onSuccess: (authUrl) => {
+      window.location.href = authUrl;
+    },
+    onError: () => {
+      toast({
+        title: "Error",
+        description: "Failed to connect to Jobber. Please try again.",
+        variant: "destructive",
+      });
+    },
+  });
+
   const updateAccountMutation = useMutation({
     mutationFn: async (data: any) => {
       const response = await apiRequest("PATCH", "/api/account", data);
@@ -97,7 +117,7 @@ export function Wizard({
 
   const steps = [
     { number: 1, title: "Company Info", icon: Building },
-    { number: 2, title: "Connect QuickBooks", icon: CheckCircle },
+    { number: 2, title: isJobberMode ? "Connect Jobber" : "Connect QuickBooks", icon: CheckCircle },
     { number: 3, title: "Reminder Settings", icon: Clock },
     { number: 4, title: "Templates & Launch", icon: Send },
   ];
@@ -160,33 +180,68 @@ export function Wizard({
           <div className="space-y-6">
             <div className="text-center">
               <CheckCircle className="w-12 h-12 text-primary mx-auto mb-4" />
-              <h2 className="text-2xl font-bold text-gray-900 mb-2">Connect QuickBooks</h2>
-              <p className="text-gray-600">Sync your vendors and bills to start collecting documents.</p>
+              <h2 className="text-2xl font-bold text-gray-900 mb-2">
+                {isJobberMode ? "Connect Jobber" : "Connect QuickBooks"}
+              </h2>
+              <p className="text-gray-600">
+                {isJobberMode 
+                  ? "Sync your clients and jobs to automate COI collection." 
+                  : "Sync your vendors and bills to start collecting documents."}
+              </p>
             </div>
             
-            {account?.qboAccessToken ? (
-              <div className="text-center p-6 bg-green-50 rounded-lg border border-green-200">
-                <CheckCircle className="w-8 h-8 text-green-600 mx-auto mb-2" />
-                <p className="text-green-800 font-medium">QuickBooks Connected!</p>
-                <p className="text-green-600 text-sm">Your vendors and bills are being synced.</p>
-              </div>
+            {isJobberMode ? (
+              account?.jobberAccessToken ? (
+                <div className="text-center p-6 bg-green-50 rounded-lg border border-green-200">
+                  <CheckCircle className="w-8 h-8 text-green-600 mx-auto mb-2" />
+                  <p className="text-green-800 font-medium">Jobber Connected!</p>
+                  <p className="text-green-600 text-sm">Your clients and jobs are being synced.</p>
+                </div>
+              ) : (
+                <div className="text-center">
+                  <Button
+                    size="lg"
+                    onClick={() => jobberConnectionMutation.mutate()}
+                    disabled={jobberConnectionMutation.isPending}
+                    className="bg-blue-500 hover:bg-blue-600 text-white px-8"
+                    data-testid="button-connect-jobber"
+                  >
+                    {jobberConnectionMutation.isPending ? (
+                      <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                    ) : (
+                      <CheckCircle className="w-4 h-4 mr-2" />
+                    )}
+                    Connect to Jobber
+                  </Button>
+                  <p className="text-sm text-gray-500 mt-2">Safe & secure OAuth connection</p>
+                </div>
+              )
             ) : (
-              <div className="text-center">
-                <Button
-                  size="lg"
-                  onClick={() => qboConnectionMutation.mutate()}
-                  disabled={qboConnectionMutation.isPending}
-                  className="bg-blue-500 hover:bg-blue-600 text-white px-8"
-                >
-                  {qboConnectionMutation.isPending ? (
-                    <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                  ) : (
-                    <CheckCircle className="w-4 h-4 mr-2" />
-                  )}
-                  Connect to QuickBooks
-                </Button>
-                <p className="text-sm text-gray-500 mt-2">Safe & secure OAuth connection</p>
-              </div>
+              account?.qboAccessToken ? (
+                <div className="text-center p-6 bg-green-50 rounded-lg border border-green-200">
+                  <CheckCircle className="w-8 h-8 text-green-600 mx-auto mb-2" />
+                  <p className="text-green-800 font-medium">QuickBooks Connected!</p>
+                  <p className="text-green-600 text-sm">Your vendors and bills are being synced.</p>
+                </div>
+              ) : (
+                <div className="text-center">
+                  <Button
+                    size="lg"
+                    onClick={() => qboConnectionMutation.mutate()}
+                    disabled={qboConnectionMutation.isPending}
+                    className="bg-blue-500 hover:bg-blue-600 text-white px-8"
+                    data-testid="button-connect-qbo"
+                  >
+                    {qboConnectionMutation.isPending ? (
+                      <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                    ) : (
+                      <CheckCircle className="w-4 h-4 mr-2" />
+                    )}
+                    Connect to QuickBooks
+                  </Button>
+                  <p className="text-sm text-gray-500 mt-2">Safe & secure OAuth connection</p>
+                </div>
+              )
             )}
           </div>
         );
@@ -337,7 +392,7 @@ export function Wizard({
       case 1:
         return watch("companyName")?.length > 0;
       case 2:
-        return account?.qboAccessToken;
+        return isJobberMode ? account?.jobberAccessToken : account?.qboAccessToken;
       case 3:
         return true;
       case 4:
