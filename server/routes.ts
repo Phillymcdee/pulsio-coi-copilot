@@ -12,6 +12,8 @@ import { sseService, eventBus } from "./services/sse";
 import { cronService } from "./services/cron";
 import { documentStorageService } from "./services/documentStorage";
 import { ocrService } from "./services/ocr";
+import { coiParser } from "./services/coiParser";
+import { coiRules } from "./services/coiRules";
 import { logger } from "./services/logger";
 import multer from 'multer';
 import { z } from 'zod';
@@ -728,6 +730,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
         mimeType: file.mimetype,
       });
 
+      // Variables for COI compliance tracking
+      let complianceStatus: string | undefined;
+      let violations: any[] | null = null;
+
       // Update vendor status and extract expiry date for COI
       if (type === 'W9') {
         await storage.updateVendor(vendorId, { w9Status: 'RECEIVED' });
@@ -745,18 +751,44 @@ export async function registerRoutes(app: Express): Promise<Server> {
         // Extract actual expiry date from COI document using OCR
         const { expiryDate: extractedDate, extractedText } = await ocrService.extractCOIInformation(file.buffer, file.mimetype);
         
-        // Use extracted date or fall back to 1 year from now
-        const expiryDate = extractedDate || (() => {
+        // Parse COI data (coverage limits, endorsements, dates)
+        let parsedData = null;
+        complianceStatus = 'UNKNOWN';
+        
+        if (extractedText) {
+          try {
+            parsedData = coiParser.parseCOI(extractedText);
+            logger.info(`COI parsed for ${vendor.name}`, { parsedData });
+            
+            // Get account COI rules to evaluate compliance
+            const account = await storage.getAccount(vendor.accountId);
+            if (account && account.coiRules) {
+              const rules = account.coiRules as any;
+              violations = coiRules.evaluateCompliance(parsedData, rules);
+              complianceStatus = coiRules.getComplianceStatus(violations);
+              logger.info(`COI compliance evaluated for ${vendor.name}`, { 
+                complianceStatus, 
+                violationCount: violations.length 
+              });
+            }
+          } catch (error) {
+            logger.error(`Error parsing/evaluating COI for ${vendor.name}`, error);
+          }
+        }
+        
+        // Use parsed expiry date, fallback to OCR date, or default to 1 year
+        const expiryDate = parsedData?.expiryDate || extractedDate || (() => {
           const fallbackDate = new Date();
           fallbackDate.setFullYear(fallbackDate.getFullYear() + 1);
           console.warn(`No expiry date found in COI for ${vendor.name}, using 1-year fallback`);
           return fallbackDate;
         })();
         
-        // Update document record with extracted text
+        // Update document record with extracted text and violations
         await storage.updateDocument(document.id, { 
           extractedText: extractedText || null,
-          expiresAt: expiryDate 
+          expiresAt: expiryDate,
+          violations: violations || null,
         });
         
         await storage.updateVendor(vendorId, { 
@@ -775,7 +807,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
         }
 
         // Log the result for monitoring
-        if (extractedDate) {
+        if (parsedData?.expiryDate) {
+          console.log(`COI expiry date parsed for ${vendor.name}: ${expiryDate.toISOString()} - Compliance: ${complianceStatus}`);
+        } else if (extractedDate) {
           console.log(`COI expiry date extracted for ${vendor.name}: ${expiryDate.toISOString()}`);
         } else {
           console.log(`COI uploaded for ${vendor.name} - using fallback expiry date: ${expiryDate.toISOString()}`);
@@ -791,12 +825,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
         description: `${type} document received`,
       });
 
-      // Send SSE event
-      eventBus.emit('doc.received', {
+      // Send SSE event with compliance status for COI
+      const sseData: any = {
         accountId: vendor.accountId,
         vendorName: vendor.name,
         docType: type,
-      });
+      };
+      
+      if (type === 'COI' && complianceStatus) {
+        sseData.complianceStatus = complianceStatus;
+        sseData.violationCount = violations?.length || 0;
+      }
+      
+      eventBus.emit('doc.received', sseData);
 
       res.json({ success: true, document });
     } catch (error) {

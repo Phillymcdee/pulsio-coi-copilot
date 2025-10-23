@@ -440,3 +440,7 @@ export function parseCOI(ocrText: string): ParsedCOIData {
     };
   }
 }
+
+export const coiParser = {
+  parseCOI,
+};

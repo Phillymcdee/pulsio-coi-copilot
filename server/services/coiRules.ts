@@ -263,3 +263,10 @@ export function getNextReminderDays(expiryDate: Date, warningDays: number[]): nu
   
   return null;
 }
+
+export const coiRules = {
+  evaluateCompliance,
+  isCompliant,
+  getComplianceStatus,
+  getNextReminderDays,
+};
