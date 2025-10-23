@@ -47,6 +47,7 @@ export interface IStorage {
   createVendor(vendor: InsertVendor): Promise<Vendor>;
   updateVendor(id: string, updates: Partial<InsertVendor>): Promise<Vendor>;
   getVendorByQboId(accountId: string, qboId: string): Promise<Vendor | undefined>;
+  getVendorByJobberId(accountId: string, jobberId: string): Promise<Vendor | undefined>;
 
   // Document operations
   getDocumentsByVendorId(vendorId: string): Promise<Document[]>;
@@ -191,6 +192,14 @@ export class DatabaseStorage implements IStorage {
       .select()
       .from(vendors)
       .where(and(eq(vendors.accountId, accountId), eq(vendors.qboId, qboId)));
+    return vendor;
+  }
+
+  async getVendorByJobberId(accountId: string, jobberId: string): Promise<Vendor | undefined> {
+    const [vendor] = await db
+      .select()
+      .from(vendors)
+      .where(and(eq(vendors.accountId, accountId), eq(vendors.jobberId, jobberId)));
     return vendor;
   }
 

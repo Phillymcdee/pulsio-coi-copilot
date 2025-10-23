@@ -4,6 +4,7 @@ import { createServer, type Server } from "http";
 import { storage } from "./storage";
 import { setupAuth, isAuthenticated } from "./replitAuth";
 import { quickbooksService } from "./services/quickbooks";
+import { jobberService } from "./services/jobber";
 import { emailService, sendEmail } from "./services/sendgrid";
 import { smsService } from "./services/twilio";
 import { stripeService } from "./services/stripe";
@@ -164,11 +165,124 @@ export async function registerRoutes(app: Express): Promise<Server> {
         }
       }, 1000);
 
-      // Redirect to success page
+          // Redirect to success page
       res.redirect(`https://${process.env.REPLIT_DOMAINS?.split(',')[0]}/onboarding?qbo=success`);
     } catch (error) {
       console.error("Error in QBO callback:", error);
       res.status(500).json({ message: "Failed to connect QuickBooks" });
+    }
+  });
+
+  // Jobber OAuth routes
+  app.get('/api/jobber/auth-url', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const account = await storage.getAccountByUserId(userId);
+      
+      if (!account) {
+        return res.status(404).json({ message: 'Account not found' });
+      }
+
+      const authUrl = jobberService.getAuthUrl(account.id);
+      res.json({ authUrl });
+    } catch (error) {
+      logger.error("Error getting Jobber auth URL", { error: error instanceof Error ? error.message : String(error) });
+      res.status(500).json({ message: "Failed to get auth URL" });
+    }
+  });
+
+  app.get('/api/jobber/callback', async (req, res) => {
+    try {
+      const { code, state: accountId } = req.query;
+      
+      if (!code || !accountId) {
+        return res.status(400).json({ message: 'Missing code or account ID' });
+      }
+
+      const tokens = await jobberService.exchangeCodeForTokens(code as string);
+      
+      // Store tokens in database
+      await storage.updateAccount(accountId as string, {
+        jobberAccountId: tokens.accountId,
+        jobberAccessToken: tokens.accessToken,
+        jobberRefreshToken: tokens.refreshToken,
+        jobberTokenExpiry: new Date(Date.now() + tokens.expiresIn * 1000),
+      } as any);
+
+      // Set default COI rules on first connect
+      const account = await storage.getAccount(accountId as string);
+      if (!account?.coiRules) {
+        await storage.updateAccount(accountId as string, {
+          coiRules: {
+            minGL: 2000000, // $2M minimum General Liability
+            minAuto: 1000000, // $1M minimum Auto Liability
+            requireAdditionalInsured: true,
+            requireWaiver: false,
+            expiryWarningDays: [30, 14, 7],
+          },
+        } as any);
+      }
+
+      // Start initial sync in background
+      setTimeout(async () => {
+        try {
+          logger.info(`Starting initial Jobber client sync for account: ${accountId}`);
+          await jobberService.syncClients(accountId as string);
+          
+          // Get vendor count for event
+          const vendors = await storage.getVendorsByAccountId(accountId as string);
+          eventBus.emit('jobber.sync', { accountId, vendorCount: vendors.length });
+          
+          logger.info('Initial Jobber sync completed successfully');
+        } catch (error) {
+          logger.error('Error in initial Jobber sync', { error: error instanceof Error ? error.message : String(error) });
+        }
+      }, 1000);
+
+      // Redirect to success page
+      res.redirect(`https://${process.env.REPLIT_DOMAINS?.split(',')[0]}/onboarding?jobber=success`);
+    } catch (error) {
+      logger.error("Error in Jobber callback", { error: error instanceof Error ? error.message : String(error) });
+      res.status(500).json({ message: "Failed to connect Jobber" });
+    }
+  });
+
+  // Manual Jobber sync endpoint
+  app.post('/api/jobber/sync', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const account = await storage.getAccountByUserId(userId);
+      
+      if (!account) {
+        return res.status(404).json({ message: 'Account not found' });
+      }
+
+      if (!account.jobberAccessToken || !account.jobberAccountId) {
+        return res.status(400).json({ message: 'Jobber not connected' });
+      }
+
+      logger.info(`Manual sync requested for account: ${account.companyName}`);
+      
+      // Run sync
+      await jobberService.syncClients(account.id);
+      
+      // Get updated count
+      const vendors = await storage.getVendorsByAccountId(account.id);
+      
+      // Emit SSE event
+      eventBus.emit('jobber.sync', { 
+        accountId: account.id, 
+        vendorCount: vendors.length 
+      });
+      
+      res.json({ 
+        message: 'Sync completed successfully',
+        vendorCount: vendors.length,
+        details: 'Jobber clients synced successfully'
+      });
+    } catch (error) {
+      logger.error("Error in manual Jobber sync", { error: error instanceof Error ? error.message : String(error) });
+      res.status(500).json({ message: "Failed to sync Jobber data" });
     }
   });
 

@@ -5,6 +5,7 @@ import compression from "compression";
 import { registerRoutes } from "./routes";
 import { setupVite, serveStatic, log } from "./vite";
 import { logger } from "./services/logger";
+import { verifyJobberWebhook, processJobberWebhook } from "./webhooks/jobber";
 
 const app = express();
 
@@ -31,6 +32,55 @@ const limiter = rateLimit({
 });
 
 app.use('/api', limiter);
+
+// Webhook routes MUST be registered BEFORE express.json() to preserve raw body for signature verification
+app.post('/webhooks/jobber', express.raw({ type: 'application/json' }), async (req, res) => {
+  try {
+    // Get raw body as string for signature verification
+    const rawBody = req.body.toString('utf8');
+    const signature = req.headers['x-jobber-hmac-sha256'] as string;
+    
+    if (!signature) {
+      logger.warn('Jobber webhook received without signature');
+      return res.status(401).json({ message: 'Missing signature' });
+    }
+
+    // Verify webhook signature
+    const isValid = verifyJobberWebhook(rawBody, signature);
+    
+    if (!isValid) {
+      logger.error('Jobber webhook signature verification failed');
+      return res.status(401).json({ message: 'Invalid signature' });
+    }
+
+    // Parse the payload
+    const payload = JSON.parse(rawBody);
+    
+    // Respond immediately with 200 (Jobber requires response within 1 second)
+    res.status(200).json({ received: true });
+    
+    // Process webhook asynchronously in background
+    setImmediate(async () => {
+      try {
+        await processJobberWebhook(payload);
+        logger.info('Jobber webhook processed successfully', { 
+          topic: payload.data?.webHookEvent?.topic 
+        });
+      } catch (error) {
+        logger.error('Error processing Jobber webhook in background', { 
+          error: error instanceof Error ? error.message : String(error),
+          topic: payload.data?.webHookEvent?.topic,
+        });
+      }
+    });
+  } catch (error) {
+    logger.error('Error in Jobber webhook endpoint', { 
+      error: error instanceof Error ? error.message : String(error) 
+    });
+    // Still return 200 to prevent Jobber from retrying
+    res.status(200).json({ received: true, error: 'Processing error' });
+  }
+});
 
 app.use(express.json());
 app.use(express.urlencoded({ extended: false }));
