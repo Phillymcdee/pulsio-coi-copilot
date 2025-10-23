@@ -893,6 +893,35 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Compliance-focused dashboard stats route
+  app.get('/api/dashboard/compliance-stats', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const account = await storage.getAccountByUserId(userId);
+      
+      if (!account) {
+        return res.status(404).json({ message: 'Account not found' });
+      }
+
+      const allStats = await storage.getDashboardStats(account.id);
+      
+      // Return only compliance-related metrics
+      const complianceStats = {
+        totalVendors: allStats.totalVendors,
+        compliantVendors: allStats.compliantVendors,
+        compliancePercentage: allStats.compliancePercentage,
+        missingCOIs: allStats.missingCOIs,
+        expiringCOIs: allStats.expiringCOIs,
+        jobsAtRisk: allStats.jobsAtRisk,
+      };
+      
+      res.json(complianceStats);
+    } catch (error) {
+      console.error("Error fetching compliance stats:", error);
+      res.status(500).json({ message: "Failed to fetch compliance stats" });
+    }
+  });
+
   // Timeline events route
   app.get('/api/timeline', isAuthenticated, async (req: any, res) => {
     try {
