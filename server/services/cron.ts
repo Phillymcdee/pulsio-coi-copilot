@@ -115,18 +115,50 @@ export class CronService {
       
       for (const account of accounts) {
         try {
+          // Get account-specific expiry warning days from coiRules
+          const coiRules = (account.coiRules as any) || {};
+          const warningDays = coiRules.expiryWarningDays || [30, 14, 7];
+          
           const vendors = await storage.getVendorsByAccountId(account.id);
           
           for (const vendor of vendors) {
             if (vendor.coiExpiry) {
               const daysUntilExpiry = Math.ceil((vendor.coiExpiry.getTime() - Date.now()) / (1000 * 60 * 60 * 24));
               
-              // Send warnings for COIs expiring in 30, 14, or 7 days
-              if ([30, 14, 7].includes(daysUntilExpiry)) {
+              // Send warnings for COIs expiring on configured warning days
+              if (warningDays.includes(daysUntilExpiry)) {
                 await emailService.sendCOIExpiryWarning(vendor.id, daysUntilExpiry);
+                
+                // Log timeline event
+                await storage.createTimelineEvent({
+                  accountId: account.id,
+                  vendorId: vendor.id,
+                  eventType: 'reminder_sent',
+                  title: `COI expiry warning sent to ${vendor.name}`,
+                  description: `COI expiry warning sent via email (${daysUntilExpiry} days remaining)`,
+                  metadata: {
+                    docType: 'COI',
+                    channel: 'email',
+                    daysUntilExpiry,
+                  },
+                });
                 
                 if (vendor.phone) {
                   await smsService.sendCOIExpiryWarningSMS(vendor.id, daysUntilExpiry);
+                  
+                  // Log SMS timeline event
+                  await storage.createTimelineEvent({
+                    accountId: account.id,
+                    vendorId: vendor.id,
+                    eventType: 'reminder_sent',
+                    title: `COI expiry warning sent to ${vendor.name}`,
+                    description: `COI expiry warning sent via SMS (${daysUntilExpiry} days remaining)`,
+                    metadata: {
+                      docType: 'COI',
+                      channel: 'sms',
+                      daysUntilExpiry,
+                    },
+                  });
                 }
                 
                 eventBus.emit('coi.expiring', {
@@ -134,27 +166,59 @@ export class CronService {
                   vendorName: vendor.name,
                   daysUntilExpiry,
                 });
+                
+                logger.info(`COI expiry warning sent for ${vendor.name}`, {
+                  vendorId: vendor.id,
+                  daysUntilExpiry,
+                  accountId: account.id,
+                });
               }
               
               // Mark as expired if past expiry date
               if (daysUntilExpiry < 0 && vendor.coiStatus !== 'EXPIRED') {
                 await storage.updateVendor(vendor.id, { coiStatus: 'EXPIRED' });
                 
+                // Log expiry timeline event
+                await storage.createTimelineEvent({
+                  accountId: account.id,
+                  vendorId: vendor.id,
+                  eventType: 'coi_expired',
+                  title: `COI expired for ${vendor.name}`,
+                  description: 'Certificate of Insurance has expired',
+                  metadata: {
+                    docType: 'COI',
+                    channel: 'system',
+                    daysUntilExpiry,
+                    expiredDate: vendor.coiExpiry,
+                  },
+                });
+                
                 eventBus.emit('coi.expired', {
                   accountId: account.id,
                   vendorName: vendor.name,
+                });
+                
+                logger.warn(`COI expired for ${vendor.name}`, {
+                  vendorId: vendor.id,
+                  expiryDate: vendor.coiExpiry,
+                  accountId: account.id,
                 });
               }
             }
           }
         } catch (error) {
-          console.error(`Error checking COIs for account ${account.companyName}:`, error);
+          logger.error(`Error checking COIs for account ${account.companyName}`, { 
+            accountId: account.id,
+            error: error instanceof Error ? error.message : String(error)
+          });
         }
       }
       
-      console.log('COI expiry check completed');
+      logger.cron('coi-expiry-check', 'completed');
     } catch (error) {
-      console.error('Error in COI expiry check:', error);
+      logger.cron('coi-expiry-check', 'failed', { 
+        error: error instanceof Error ? error.message : String(error) 
+      });
     }
   }
 
