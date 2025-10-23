@@ -33,6 +33,7 @@ export default function Settings() {
   const { toast } = useToast();
   const { isAuthenticated, isLoading } = useAuth();
   const queryClient = useQueryClient();
+  const isJobberMode = import.meta.env.VITE_FEATURE_JOBBER === 'true';
 
   // Redirect to login if not authenticated
   useEffect(() => {
@@ -158,7 +159,9 @@ export default function Settings() {
     onSuccess: () => {
       toast({
         title: "Sync Started",
-        description: "QuickBooks sync has been initiated. Check the dashboard for updates.",
+        description: isJobberMode 
+          ? "Jobber sync has been initiated. Check the dashboard for updates."
+          : "QuickBooks sync has been initiated. Check the dashboard for updates.",
       });
     },
     onError: (error) => {
@@ -544,55 +547,96 @@ export default function Settings() {
             </CardContent>
           </Card>
 
-          {/* QuickBooks Integration */}
-          <Card>
-            <CardHeader>
-              <CardTitle>QuickBooks Integration</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="flex items-center justify-between">
-                <div>
-                  <div className="font-medium">Connection Status</div>
-                  <div className="text-sm text-gray-600">
-                    {(account as any)?.qboAccessToken ? 'Connected and syncing' : 'Not connected'}
+          {/* QuickBooks Integration - Hide in Jobber mode */}
+          {!isJobberMode && (
+            <Card>
+              <CardHeader>
+                <CardTitle>QuickBooks Integration</CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <div className="font-medium">Connection Status</div>
+                    <div className="text-sm text-gray-600">
+                      {(account as any)?.qboAccessToken ? 'Connected and syncing' : 'Not connected'}
+                    </div>
+                  </div>
+                  <div className="flex items-center space-x-2">
+                    {(account as any)?.qboAccessToken ? (
+                      <Badge variant="secondary" className="text-green-700 bg-green-50">
+                        <CheckCircle className="w-3 h-3 mr-1" />
+                        Connected
+                      </Badge>
+                    ) : (
+                      <Badge variant="secondary" className="text-red-700 bg-red-50">
+                        Not Connected
+                      </Badge>
+                    )}
                   </div>
                 </div>
-                <div className="flex items-center space-x-2">
-                  {(account as any)?.qboAccessToken ? (
-                    <Badge variant="secondary" className="text-green-700 bg-green-50">
-                      <CheckCircle className="w-3 h-3 mr-1" />
-                      Connected
-                    </Badge>
-                  ) : (
-                    <Badge variant="secondary" className="text-red-700 bg-red-50">
-                      Not Connected
-                    </Badge>
-                  )}
-                </div>
-              </div>
-              
-              {(account as any)?.qboAccessToken && (
-                <div className="flex items-center space-x-2">
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => manualSyncMutation.mutate()}
-                    disabled={manualSyncMutation.isPending}
-                  >
-                    {manualSyncMutation.isPending ? (
-                      <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                
+                {(account as any)?.qboAccessToken && (
+                  <div className="flex items-center space-x-2">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => manualSyncMutation.mutate()}
+                      disabled={manualSyncMutation.isPending}
+                    >
+                      {manualSyncMutation.isPending ? (
+                        <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                      ) : (
+                        <CheckCircle className="w-4 h-4 mr-2" />
+                      )}
+                      Sync Now
+                    </Button>
+                    <p className="text-sm text-gray-500">
+                      Last sync: {(account as any)?.updatedAt ? formatDistanceToNow(new Date((account as any).updatedAt), { addSuffix: true }) : 'Never'}
+                    </p>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          )}
+
+          {/* Jobber Integration - Show in Jobber mode */}
+          {isJobberMode && (
+            <Card>
+              <CardHeader>
+                <CardTitle>Jobber Integration</CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <div className="font-medium">Connection Status</div>
+                    <div className="text-sm text-gray-600">
+                      {(account as any)?.jobberAccessToken ? 'Connected and syncing' : 'Not connected'}
+                    </div>
+                  </div>
+                  <div className="flex items-center space-x-2">
+                    {(account as any)?.jobberAccessToken ? (
+                      <Badge variant="secondary" className="text-green-700 bg-green-50">
+                        <CheckCircle className="w-3 h-3 mr-1" />
+                        Connected
+                      </Badge>
                     ) : (
-                      <CheckCircle className="w-4 h-4 mr-2" />
+                      <Badge variant="secondary" className="text-red-700 bg-red-50">
+                        Not Connected
+                      </Badge>
                     )}
-                    Sync Now
-                  </Button>
-                  <p className="text-sm text-gray-500">
-                    Last sync: {(account as any)?.updatedAt ? formatDistanceToNow(new Date((account as any).updatedAt), { addSuffix: true }) : 'Never'}
-                  </p>
+                  </div>
                 </div>
-              )}
-            </CardContent>
-          </Card>
+                
+                {(account as any)?.jobberAccessToken && (
+                  <div className="flex items-center space-x-2">
+                    <p className="text-sm text-gray-500">
+                      Syncing clients and jobs automatically via webhooks
+                    </p>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          )}
 
           {/* Billing & Subscription */}
           <Card>
