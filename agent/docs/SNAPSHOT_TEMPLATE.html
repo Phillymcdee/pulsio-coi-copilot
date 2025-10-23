@@ -1,0 +1,34 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>Compliance Snapshot</title>
+  <style>
+    body { font-family: system-ui, -apple-system, Segoe UI, Roboto, sans-serif; margin: 24px; }
+    h1 { margin: 0 0 8px; }
+    .meta { color: #555; margin-bottom: 16px; }
+    table { border-collapse: collapse; width: 100%; margin-top: 16px;}
+    th, td { border: 1px solid #ddd; padding: 8px; text-align: left; }
+    .ok { color: #0a7d32; } .warn { color: #b45309; } .fail { color: #b91c1c; }
+  </style>
+</head>
+<body>
+  <h1>Compliance Snapshot</h1>
+  <div class="meta">Generated: {{ generatedAt }} • Vendor: {{ vendorName }}</div>
+  <h2>COI Status</h2>
+  <p>Effective: {{ effective }} • Expires: {{ expires }} • GL Limit: {{ glLimit }}</p>
+  <p>Additional Insured: {{ additionalInsured }} • Waiver of Subrogation: {{ waiver }}</p>
+  <h2>Rule Check</h2>
+  <ul>
+    {{#each violations}}<li class="fail">{{this}}</li>{{/each}}
+    {{#unless violations.length}}<li class="ok">All checks passed</li>{{/unless}}
+  </ul>
+  <h2>Policy Lines</h2>
+  <table>
+    <thead><tr><th>Type</th><th>Limit</th></tr></thead>
+    <tbody>
+      {{#each lines}}<tr><td>{{type}}</td><td>{{limit}}</td></tr>{{/each}}
+    </tbody>
+  </table>
+</body>
+</html>
