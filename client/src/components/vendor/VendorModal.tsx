@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { useQuery } from "@tanstack/react-query";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -19,7 +20,9 @@ import {
   CheckCircle,
   AlertCircle,
   Edit,
-  Save
+  Save,
+  ShieldAlert,
+  FileCheck
 } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
 
@@ -50,6 +53,14 @@ export function VendorModal({
     email: vendor?.email || '',
     phone: vendor?.phone || '',
   });
+
+  const { data: documents } = useQuery<any[]>({
+    queryKey: ["/api/vendors", vendor?.id, "documents"],
+    enabled: !!vendor?.id,
+  });
+
+  const coiDocument = documents?.find((doc: any) => doc.type === 'COI');
+  const isJobberMode = import.meta.env.VITE_FEATURE_JOBBER === 'true';
 
   if (!isOpen || !vendor) return null;
 
@@ -148,6 +159,42 @@ export function VendorModal({
         return 'bg-amber-50 border-amber-200 text-amber-800';
       default:
         return 'bg-gray-50 border-gray-200 text-gray-800';
+    }
+  };
+
+  const getComplianceStatus = () => {
+    if (coiDocument?.violations && coiDocument.violations.length > 0) {
+      return { label: 'Non-Compliant', color: 'bg-red-500', textColor: 'text-red-700' };
+    }
+    if (vendor.coiStatus === 'EXPIRED') {
+      return { label: 'Expired', color: 'bg-red-500', textColor: 'text-red-700' };
+    }
+    if (vendor.coiStatus === 'MISSING') {
+      return { label: 'Missing', color: 'bg-red-500', textColor: 'text-red-700' };
+    }
+    
+    const daysUntilExpiry = vendor.coiExpiry 
+      ? Math.ceil((new Date(vendor.coiExpiry).getTime() - new Date().getTime()) / (1000 * 60 * 60 * 24))
+      : null;
+    
+    if (daysUntilExpiry !== null) {
+      if (daysUntilExpiry <= 7) {
+        return { label: 'Expiring Soon', color: 'bg-orange-500', textColor: 'text-orange-700' };
+      }
+      if (daysUntilExpiry <= 30) {
+        return { label: 'Expiring', color: 'bg-yellow-500', textColor: 'text-yellow-700' };
+      }
+    }
+    
+    return { label: 'Compliant', color: 'bg-green-500', textColor: 'text-green-700' };
+  };
+
+  const handleDownloadSnapshot = async () => {
+    try {
+      window.open(`/api/vendors/${vendor.id}/snapshot.pdf`, '_blank');
+    } catch (error) {
+      console.error('Error downloading snapshot:', error);
+      alert('Error downloading compliance snapshot');
     }
   };
 
@@ -383,8 +430,12 @@ export function VendorModal({
                       {getStatusIcon(vendor.coiStatus)}
                       <span className="font-medium">Certificate of Insurance</span>
                     </div>
-                    <Badge variant="outline" className={getStatusColor(vendor.coiStatus)}>
-                      {vendor.coiStatus}
+                    <Badge 
+                      variant="outline" 
+                      className={`${getComplianceStatus().color} ${getComplianceStatus().textColor} border-0 text-white`}
+                      data-testid="badge-coi-compliance-status"
+                    >
+                      {getComplianceStatus().label}
                     </Badge>
                   </div>
                   <p className="text-sm mb-3">
@@ -393,36 +444,105 @@ export function VendorModal({
                       : 'Insurance coverage verification'
                     }
                   </p>
-                  {vendor.coiStatus === 'MISSING' || vendor.coiStatus === 'EXPIRED' ? (
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      onClick={() => onSendReminder({ type: 'COI', channel: 'email' })}
-                      disabled={isSendingReminder}
-                    >
-                      {isSendingReminder ? (
-                        <Loader2 className="w-4 h-4 mr-1 animate-spin" />
-                      ) : (
-                        <Send className="w-4 h-4 mr-1" />
-                      )}
-                      Send Reminder
-                    </Button>
-                  ) : (
-                    <Button size="sm" variant="outline" onClick={handleDownloadCOI}>
-                      <Download className="w-4 h-4 mr-1" />
-                      Download PDF
-                    </Button>
+
+                  {/* COI Parsed Fields */}
+                  {coiDocument?.parsedData && vendor.coiStatus === 'RECEIVED' && (
+                    <div className="mb-3 p-3 bg-white rounded-lg border border-gray-200 space-y-2">
+                      <h5 className="text-xs font-semibold text-gray-700 mb-2">Coverage Details</h5>
+                      <div className="grid grid-cols-2 gap-2 text-xs">
+                        {coiDocument.parsedData.effectiveDate && (
+                          <div>
+                            <span className="text-gray-500">Effective:</span>
+                            <div className="font-medium">{new Date(coiDocument.parsedData.effectiveDate).toLocaleDateString('en-US', { timeZone: 'UTC' })}</div>
+                          </div>
+                        )}
+                        {coiDocument.parsedData.glCoverage && (
+                          <div>
+                            <span className="text-gray-500">GL Coverage:</span>
+                            <div className="font-medium">${coiDocument.parsedData.glCoverage.toLocaleString()}</div>
+                          </div>
+                        )}
+                        {coiDocument.parsedData.autoCoverage && (
+                          <div>
+                            <span className="text-gray-500">Auto Coverage:</span>
+                            <div className="font-medium">${coiDocument.parsedData.autoCoverage.toLocaleString()}</div>
+                          </div>
+                        )}
+                        {coiDocument.parsedData.additionalInsured !== undefined && (
+                          <div>
+                            <span className="text-gray-500">Add'l Insured:</span>
+                            <div className="font-medium">{coiDocument.parsedData.additionalInsured ? '✓ Yes' : '✗ No'}</div>
+                          </div>
+                        )}
+                        {coiDocument.parsedData.waiverOfSubrogation !== undefined && (
+                          <div>
+                            <span className="text-gray-500">Waiver:</span>
+                            <div className="font-medium">{coiDocument.parsedData.waiverOfSubrogation ? '✓ Yes' : '✗ No'}</div>
+                          </div>
+                        )}
+                      </div>
+                    </div>
                   )}
+
+                  {/* Violations List */}
+                  {coiDocument?.violations && coiDocument.violations.length > 0 && (
+                    <div className="mb-3 p-3 bg-red-50 border border-red-200 rounded-lg" data-testid="violations-list">
+                      <div className="flex items-start space-x-2 mb-2">
+                        <ShieldAlert className="w-4 h-4 text-red-600 mt-0.5" />
+                        <h5 className="text-xs font-semibold text-red-700">Compliance Violations</h5>
+                      </div>
+                      <ul className="text-xs text-red-700 space-y-1">
+                        {coiDocument.violations.map((violation: string, idx: number) => (
+                          <li key={idx} className="flex items-start" data-testid={`violation-item-${idx}`}>
+                            <span className="mr-1">•</span>
+                            <span>{violation}</span>
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  )}
+
+                  <div className="flex gap-2">
+                    {vendor.coiStatus === 'MISSING' || vendor.coiStatus === 'EXPIRED' ? (
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() => onSendReminder({ type: 'COI', channel: 'email' })}
+                        disabled={isSendingReminder}
+                        className="flex-1"
+                        data-testid="button-send-coi-reminder"
+                      >
+                        {isSendingReminder ? (
+                          <Loader2 className="w-4 h-4 mr-1 animate-spin" />
+                        ) : (
+                          <Send className="w-4 h-4 mr-1" />
+                        )}
+                        Send Reminder
+                      </Button>
+                    ) : (
+                      <>
+                        <Button size="sm" variant="outline" onClick={handleDownloadCOI} className="flex-1" data-testid="button-download-coi">
+                          <Download className="w-4 h-4 mr-1" />
+                          Download
+                        </Button>
+                        <Button size="sm" variant="outline" onClick={handleDownloadSnapshot} className="flex-1" data-testid="button-download-snapshot">
+                          <FileCheck className="w-4 h-4 mr-1" />
+                          Snapshot
+                        </Button>
+                      </>
+                    )}
+                  </div>
                 </CardContent>
               </Card>
             </div>
 
-            {/* Recent Bills */}
-            <Card>
-              <CardContent className="p-0">
-                <div className="p-4 border-b border-gray-200">
-                  <h4 className="font-medium text-gray-900">Recent Bills</h4>
-                </div>
+            {/* Recent Bills - Hide in Jobber mode */}
+            {!isJobberMode && (
+              <Card>
+                <CardContent className="p-0">
+                  <div className="p-4 border-b border-gray-200">
+                    <h4 className="font-medium text-gray-900">Recent Bills</h4>
+                  </div>
                 <div className="divide-y divide-gray-200">
                   {vendor.bills && vendor.bills.length > 0 ? (
                     vendor.bills.slice(0, 5).map((bill: any, index: number) => {
@@ -521,6 +641,7 @@ export function VendorModal({
                 </div>
               </CardContent>
             </Card>
+            )}
           </div>
 
           {/* Right Column - Actions & Info */}
