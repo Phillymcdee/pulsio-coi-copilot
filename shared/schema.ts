@@ -115,6 +115,7 @@ export const documents = pgTable("documents", {
   uploadedAt: timestamp("uploaded_at").defaultNow(),
   expiresAt: timestamp("expires_at"),
   extractedText: text("extracted_text"), // OCR extracted text for COI documents
+  parsedData: jsonb("parsed_data"), // Parsed COI fields (effectiveDate, expiryDate, glCoverage, autoCoverage, additionalInsured, waiverOfSubrogation)
   violations: jsonb("violations"), // Array of compliance violations from rules evaluation
 });
 

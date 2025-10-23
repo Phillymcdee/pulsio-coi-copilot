@@ -6,8 +6,9 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Checkbox } from '@/components/ui/checkbox';
 import { useToast } from '@/hooks/use-toast';
-import { Upload, FileText, AlertCircle, CheckCircle } from 'lucide-react';
+import { Upload, FileText, AlertCircle, CheckCircle, Shield, Edit } from 'lucide-react';
 import { queryClient, apiRequest } from '@/lib/queryClient';
 
 interface Vendor {
@@ -19,12 +20,30 @@ interface Vendor {
   coiStatus: string;
 }
 
+interface ParsedCOIData {
+  effectiveDate?: string;
+  expiryDate?: string;
+  glCoverage?: number;
+  autoCoverage?: number;
+  additionalInsured?: boolean;
+  waiverOfSubrogation?: boolean;
+}
+
+interface UploadedDocument {
+  id: string;
+  parsedData?: ParsedCOIData;
+  violations?: string[];
+}
+
 export default function UploadPage() {
   const [match, params] = useRoute('/upload/:vendorId');
   const { toast } = useToast();
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [documentType, setDocumentType] = useState<'W9' | 'COI'>('W9');
   const [isDragOver, setIsDragOver] = useState(false);
+  const [showConfirmation, setShowConfirmation] = useState(false);
+  const [uploadedDocument, setUploadedDocument] = useState<UploadedDocument | null>(null);
+  const [parsedFields, setParsedFields] = useState<ParsedCOIData>({});
 
   const vendorId = params?.vendorId;
 
@@ -60,13 +79,21 @@ export default function UploadPage() {
 
       return response.json();
     },
-    onSuccess: () => {
-      toast({
-        title: "Document uploaded successfully!",
-        description: `Your ${documentType} has been received. Thank you!`,
-      });
-      setSelectedFile(null);
-      setDocumentType('W9');
+    onSuccess: (data) => {
+      if (documentType === 'COI' && data.document?.parsedData) {
+        // Show confirmation screen for COI with parsed data
+        setUploadedDocument(data.document);
+        setParsedFields(data.document.parsedData);
+        setShowConfirmation(true);
+      } else {
+        // For W9 or COI without parsed data, show success immediately
+        toast({
+          title: "Document uploaded successfully!",
+          description: `Your ${documentType} has been received. Thank you!`,
+        });
+        setSelectedFile(null);
+        setDocumentType('W9');
+      }
     },
     onError: (error: Error) => {
       toast({
@@ -143,6 +170,46 @@ export default function UploadPage() {
     uploadMutation.mutate({ file: selectedFile, type: documentType });
   };
 
+  // Mutation to update document with corrected data
+  const updateDocumentMutation = useMutation({
+    mutationFn: async (correctedData: ParsedCOIData) => {
+      const response = await fetch(`/api/documents/${uploadedDocument?.id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ parsedData: correctedData }),
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to update document');
+      }
+
+      return response.json();
+    },
+    onSuccess: () => {
+      toast({
+        title: "COI submitted successfully!",
+        description: "Thank you for providing your Certificate of Insurance.",
+      });
+      // Reset state
+      setShowConfirmation(false);
+      setSelectedFile(null);
+      setDocumentType('W9');
+      setUploadedDocument(null);
+      setParsedFields({});
+    },
+    onError: (error: Error) => {
+      toast({
+        title: "Failed to save corrections",
+        description: error.message,
+        variant: "destructive",
+      });
+    },
+  });
+
+  const handleConfirmCOI = () => {
+    updateDocumentMutation.mutate(parsedFields);
+  };
+
   if (!match) {
     return null;
   }
@@ -176,6 +243,179 @@ export default function UploadPage() {
 
   const isW9Complete = vendor.w9Status === 'RECEIVED';
   const isCOIComplete = vendor.coiStatus === 'RECEIVED';
+
+  // Show confirmation screen if COI was uploaded with parsed data
+  if (showConfirmation && uploadedDocument) {
+    return (
+      <div className="min-h-screen bg-gray-50 dark:bg-gray-900 py-12 px-4 sm:px-6 lg:px-8">
+        <div className="max-w-3xl mx-auto">
+          {/* Header */}
+          <div className="text-center mb-8">
+            <Shield className="w-16 h-16 text-blue-600 mx-auto mb-4" />
+            <h1 className="text-3xl font-bold text-gray-900 dark:text-white">
+              Review COI Information
+            </h1>
+            <p className="mt-2 text-gray-600 dark:text-gray-400">
+              Please review the extracted information and make any necessary corrections
+            </p>
+          </div>
+
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center space-x-2">
+                <Edit className="w-5 h-5" />
+                <span>Extracted Certificate Details</span>
+              </CardTitle>
+              <CardDescription>
+                Our system automatically extracted these fields. Please verify accuracy.
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-6">
+              {/* Date Fields */}
+              <div className="grid md:grid-cols-2 gap-4">
+                <div>
+                  <Label htmlFor="effectiveDate">Effective Date</Label>
+                  <Input
+                    id="effectiveDate"
+                    type="date"
+                    value={parsedFields.effectiveDate || ''}
+                    onChange={(e) => setParsedFields({ ...parsedFields, effectiveDate: e.target.value })}
+                    className="mt-1"
+                    data-testid="input-effective-date"
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="expiryDate">Expiry Date</Label>
+                  <Input
+                    id="expiryDate"
+                    type="date"
+                    value={parsedFields.expiryDate || ''}
+                    onChange={(e) => setParsedFields({ ...parsedFields, expiryDate: e.target.value })}
+                    className="mt-1"
+                    data-testid="input-expiry-date"
+                  />
+                </div>
+              </div>
+
+              {/* Coverage Amounts */}
+              <div className="grid md:grid-cols-2 gap-4">
+                <div>
+                  <Label htmlFor="glCoverage">General Liability Coverage</Label>
+                  <div className="relative mt-1">
+                    <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500">$</span>
+                    <Input
+                      id="glCoverage"
+                      type="number"
+                      value={parsedFields.glCoverage || ''}
+                      onChange={(e) => setParsedFields({ ...parsedFields, glCoverage: parseInt(e.target.value) || 0 })}
+                      className="pl-7"
+                      placeholder="1000000"
+                      data-testid="input-gl-coverage"
+                    />
+                  </div>
+                  <p className="text-xs text-gray-500 mt-1">
+                    Typically $1,000,000 ($1M)
+                  </p>
+                </div>
+                <div>
+                  <Label htmlFor="autoCoverage">Auto Liability Coverage</Label>
+                  <div className="relative mt-1">
+                    <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500">$</span>
+                    <Input
+                      id="autoCoverage"
+                      type="number"
+                      value={parsedFields.autoCoverage || ''}
+                      onChange={(e) => setParsedFields({ ...parsedFields, autoCoverage: parseInt(e.target.value) || 0 })}
+                      className="pl-7"
+                      placeholder="1000000"
+                      data-testid="input-auto-coverage"
+                    />
+                  </div>
+                  <p className="text-xs text-gray-500 mt-1">
+                    Typically $1,000,000 ($1M)
+                  </p>
+                </div>
+              </div>
+
+              {/* Endorsements */}
+              <div className="space-y-3 p-4 bg-gray-50 dark:bg-gray-800 rounded-lg">
+                <Label className="text-base font-medium">Endorsements</Label>
+                <div className="space-y-3">
+                  <div className="flex items-center space-x-2">
+                    <Checkbox
+                      id="additionalInsured"
+                      checked={parsedFields.additionalInsured || false}
+                      onCheckedChange={(checked) => setParsedFields({ ...parsedFields, additionalInsured: checked as boolean })}
+                      data-testid="checkbox-additional-insured"
+                    />
+                    <Label htmlFor="additionalInsured" className="text-sm font-normal cursor-pointer">
+                      Additional Insured
+                    </Label>
+                  </div>
+                  <div className="flex items-center space-x-2">
+                    <Checkbox
+                      id="waiverOfSubrogation"
+                      checked={parsedFields.waiverOfSubrogation || false}
+                      onCheckedChange={(checked) => setParsedFields({ ...parsedFields, waiverOfSubrogation: checked as boolean })}
+                      data-testid="checkbox-waiver-of-subrogation"
+                    />
+                    <Label htmlFor="waiverOfSubrogation" className="text-sm font-normal cursor-pointer">
+                      Waiver of Subrogation
+                    </Label>
+                  </div>
+                </div>
+              </div>
+
+              {/* Violations Display */}
+              {uploadedDocument.violations && uploadedDocument.violations.length > 0 && (
+                <div className="p-4 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg">
+                  <h4 className="font-medium text-red-800 dark:text-red-200 mb-2 flex items-center">
+                    <AlertCircle className="w-4 h-4 mr-2" />
+                    Compliance Issues Detected
+                  </h4>
+                  <ul className="list-disc list-inside text-sm text-red-700 dark:text-red-300 space-y-1">
+                    {uploadedDocument.violations.map((violation, idx) => (
+                      <li key={idx}>{violation}</li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+
+              {/* Action Buttons */}
+              <div className="flex space-x-3 pt-4">
+                <Button
+                  onClick={() => setShowConfirmation(false)}
+                  variant="outline"
+                  className="flex-1"
+                  data-testid="button-back"
+                >
+                  Go Back
+                </Button>
+                <Button
+                  onClick={handleConfirmCOI}
+                  disabled={updateDocumentMutation.isPending}
+                  className="flex-1"
+                  data-testid="button-confirm-coi"
+                >
+                  {updateDocumentMutation.isPending ? (
+                    <>
+                      <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
+                      Saving...
+                    </>
+                  ) : (
+                    <>
+                      <CheckCircle className="w-4 h-4 mr-2" />
+                      Confirm & Submit
+                    </>
+                  )}
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-gray-900 py-12 px-4 sm:px-6 lg:px-8">

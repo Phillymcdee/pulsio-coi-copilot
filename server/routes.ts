@@ -784,9 +784,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
           return fallbackDate;
         })();
         
-        // Update document record with extracted text and violations
+        // Update document record with extracted text, parsed data, and violations
         await storage.updateDocument(document.id, { 
           extractedText: extractedText || null,
+          parsedData: parsedData || null,
           expiresAt: expiryDate,
           violations: violations || null,
         });
@@ -872,6 +873,76 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error("Error downloading document:", error);
       res.status(500).json({ message: "Failed to download document" });
+    }
+  });
+
+  // Document update route (for correcting COI parsed data)
+  app.patch('/api/documents/:id', async (req, res) => {
+    try {
+      const { id } = req.params;
+      const { parsedData } = req.body;
+
+      // Get document to verify it exists
+      const document = await storage.getDocument(id);
+      if (!document) {
+        return res.status(404).json({ message: 'Document not found' });
+      }
+
+      // Re-evaluate compliance and update all related fields for COI
+      if (document.type === 'COI' && parsedData) {
+        const vendor = await storage.getVendor(document.vendorId);
+        if (vendor) {
+          // Parse expiry date from corrected data
+          let expiryDate = new Date();
+          if (parsedData.expiryDate) {
+            expiryDate = new Date(parsedData.expiryDate);
+          } else {
+            // Fallback to 1 year from now if no expiry date provided
+            expiryDate.setFullYear(expiryDate.getFullYear() + 1);
+          }
+
+          // Re-evaluate compliance with corrected data
+          let violations: any[] | null = null;
+          let complianceStatus = 'COMPLIANT';
+          
+          const account = await storage.getAccount(vendor.accountId);
+          if (account && account.coiRules) {
+            const rules = account.coiRules as any;
+            violations = coiRules.evaluateCompliance(parsedData, rules);
+            complianceStatus = coiRules.getComplianceStatus(violations);
+          }
+
+          // Update document with corrected parsed data, expiry date, and violations
+          await storage.updateDocument(id, { 
+            parsedData,
+            expiresAt: expiryDate,
+            violations: violations || null,
+          });
+
+          // Update vendor with corrected expiry date and compliance status
+          await storage.updateVendor(document.vendorId, {
+            coiStatus: 'RECEIVED',
+            coiExpiry: expiryDate,
+          });
+
+          logger.info(`COI corrected and re-evaluated for ${vendor.name}`, { 
+            complianceStatus, 
+            violationCount: violations?.length || 0,
+            expiryDate: expiryDate.toISOString(),
+          });
+
+          res.json({ success: true, violations, complianceStatus });
+        } else {
+          res.json({ success: true });
+        }
+      } else {
+        // For non-COI documents, just update parsed data
+        await storage.updateDocument(id, { parsedData });
+        res.json({ success: true });
+      }
+    } catch (error) {
+      console.error("Error updating document:", error);
+      res.status(500).json({ message: "Failed to update document" });
     }
   });
 
