@@ -14,6 +14,7 @@ import { documentStorageService } from "./services/documentStorage";
 import { ocrService } from "./services/ocr";
 import { coiParser } from "./services/coiParser";
 import { coiRules } from "./services/coiRules";
+import { generateComplianceSnapshot } from "./services/snapshotPdf";
 import { logger } from "./services/logger";
 import multer from 'multer';
 import { z } from 'zod';
@@ -412,6 +413,88 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error("Error fetching vendor documents:", error);
       res.status(500).json({ message: "Failed to fetch vendor documents" });
+    }
+  });
+
+  // Generate compliance snapshot PDF
+  app.get('/api/vendors/:id/snapshot.pdf', isAuthenticated, async (req: any, res) => {
+    try {
+      const { id } = req.params;
+      const userId = req.user.claims.sub;
+      const account = await storage.getAccountByUserId(userId);
+      
+      if (!account) {
+        return res.status(404).json({ message: 'Account not found' });
+      }
+
+      // Verify vendor belongs to the user's account
+      const vendor = await storage.getVendor(id);
+      if (!vendor || vendor.accountId !== account.id) {
+        return res.status(404).json({ message: 'Vendor not found' });
+      }
+
+      // Get COI document
+      const documents = await storage.getDocumentsByVendorId(id);
+      const coiDoc = documents.find((doc: any) => doc.type === 'COI');
+
+      const formatDate = (date: Date | string | null) => {
+        if (!date) return 'N/A';
+        return new Date(date).toLocaleDateString('en-US', { 
+          year: 'numeric', 
+          month: 'long', 
+          day: 'numeric',
+          timeZone: 'UTC'
+        });
+      };
+
+      const formatCurrency = (amount: number | null | undefined) => {
+        if (!amount) return 'N/A';
+        return `$${amount.toLocaleString()}`;
+      };
+
+      const formatBoolean = (value: boolean | null | undefined) => {
+        if (value === true) return 'Yes';
+        if (value === false) return 'No';
+        return 'N/A';
+      };
+
+      // Determine violations - inject missing COI violation if no document exists
+      let violations: string[] = [];
+      if (!coiDoc) {
+        violations = ['Certificate of Insurance is missing - vendor is non-compliant'];
+      } else if (vendor.coiStatus === 'EXPIRED') {
+        violations = ['Certificate of Insurance has expired'];
+      } else {
+        violations = coiDoc.violations || [];
+      }
+
+      // Prepare snapshot data
+      const snapshotData = {
+        vendorName: vendor.name,
+        effective: coiDoc?.parsedData?.effectiveDate 
+          ? formatDate(coiDoc.parsedData.effectiveDate)
+          : 'N/A',
+        expires: vendor.coiExpiry ? formatDate(vendor.coiExpiry) : 'N/A',
+        glLimit: coiDoc?.parsedData?.glCoverage 
+          ? formatCurrency(coiDoc.parsedData.glCoverage)
+          : 'N/A',
+        autoCoverage: coiDoc?.parsedData?.autoCoverage
+          ? formatCurrency(coiDoc.parsedData.autoCoverage)
+          : 'N/A',
+        additionalInsured: formatBoolean(coiDoc?.parsedData?.additionalInsured),
+        waiver: formatBoolean(coiDoc?.parsedData?.waiverOfSubrogation),
+        violations: violations,
+        complianceStatus: vendor.coiStatus || 'UNKNOWN',
+      };
+
+      const pdfBuffer = await generateComplianceSnapshot(snapshotData);
+
+      res.setHeader('Content-Type', 'application/pdf');
+      res.setHeader('Content-Disposition', `attachment; filename="compliance-snapshot-${vendor.name.replace(/[^a-z0-9]/gi, '-')}-${new Date().toISOString().split('T')[0]}.pdf"`);
+      res.send(pdfBuffer);
+    } catch (error) {
+      console.error("Error generating compliance snapshot:", error);
+      res.status(500).json({ message: "Failed to generate compliance snapshot" });
     }
   });
 
