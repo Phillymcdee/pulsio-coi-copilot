@@ -1,156 +1,94 @@
 # Pulsio - Automated Document Collection for Contractors
 
 ## Overview
-
-Pulsio is a full-stack web application that automates the collection of subcontractor W-9s and Certificates of Insurance (COIs) for trade-service contractors using QuickBooks Online integration. The system helps contractors capture early-payment discounts, avoid IRS penalties, and reduce administrative overhead by automatically tracking missing documents and sending reminders.
-
-**Current Status:** 75% complete with strong architectural foundations and UI, but critical business logic needs completion.
-**MVP Target:** 2-3 weeks to functional release.
-**See:** `implementation_roadmap.md` for detailed completion plan.
+Pulsio is a full-stack web application designed to automate the collection of W-9s and Certificates of Insurance (COIs) from subcontractors for trade-service contractors. It integrates with QuickBooks Online to help users capture early-payment discounts, avoid IRS penalties, and reduce administrative overhead by tracking missing documents and sending automated reminders. The project aims to be a comprehensive, production-ready SaaS platform.
 
 ## User Preferences
-
 Preferred communication style: Simple, everyday language.
 
+## Go-to-Market Execution Status
+**Updated**: January 9, 2025
+**Phase**: Foundation Building (Week 1 of 12)
+**Progress**: 100% complete on foundational marketing and sales assets
+
+### Completed GTM Components
+- Professional landing page with ROI calculator and conversion optimization
+- Comprehensive signup flow with Replit OAuth integration
+- Google Analytics tracking with conversion goals and KPIs
+- Content marketing assets: blog posts, case studies, lead magnets
+- Sales enablement materials: prospect lists, demo scripts, CRM templates
+- Marketing automation foundation with event tracking
+- Vendor compliance checklist as downloadable lead magnet
+- **Security & Compliance page** - Enterprise-grade security documentation with legal disclaimers
+- **Unified Pricing Strategy** - Vendor-based pricing ($59-259/month) with Stripe integration and ROI guarantee
+- **Competitive analysis page** - Positioning vs MyCOI, TrustLayer, Tax1099, and QBO add-ons
+- **Outbound sales sequences** - Ready-to-use email and LinkedIn templates with objection handling
+- **Professional Footer** - Consistent navigation across all marketing pages
+
+### RESOLVED: Pricing Page Consolidation (January 9, 2025)
+- **Issue**: Duplicate pricing pages showing conflicting information
+- **Old System**: Hardcoded $99/$199/$399 feature-based pricing in Stripe service
+- **New System**: Vendor-based pricing ($59/$139/$259) with limits aligned to target market
+- **Changes Made**:
+  - Updated Stripe service to reflect vendor-based pricing structure
+  - Subscribe page now shows correct pricing with 30-day ROI guarantee
+  - Old pricing page redirects to subscribe page (Stripe-integrated)
+  - Footer navigation updated to point to subscribe page
+  - Type definitions updated to support vendor limits and annual pricing
+
+### Go-to-Market Assets Ready for Implementation
+- **Pricing Strategy**: $59-259/month tiered by vendor count with 30-day ROI guarantee
+- **Email Sequences**: Pain+ROI hook and social proof templates targeting AP/Office Managers
+- **LinkedIn Outreach**: Connection and follow-up message templates
+- **Objection Handling**: Responses for "we use spreadsheets", "ProAdvisor handles it", etc.
+- **Security Trust**: Complete compliance documentation to remove buyer hesitation
+- **Competitive Positioning**: Clear differentiation as QBO-native contractor-focused solution
+
+### Next Priority Actions (Week 2)
+- Launch direct outbound campaign to 25 qualified prospects using new sequences
+- Deploy security documentation and competitive positioning to build buyer confidence
+- Initiate QuickBooks ProAdvisor partnership discussions with competitive analysis
+- Set up CRM system and lead tracking workflows
+- Begin systematic LinkedIn and email outreach campaigns with objection handling scripts
+
 ## System Architecture
+Pulsio is built as a modern full-stack monorepo application with integrated marketing and sales automation.
 
-This is a modern full-stack application built with a **monorepo structure** containing both client and server code:
+### Marketing Technology Stack
+- **Landing Pages**: Custom React components with conversion optimization
+- **Analytics**: Google Analytics 4 with custom event tracking for GTM KPIs
+- **Lead Generation**: ROI calculator, compliance checklist, case studies
+- **Email Marketing**: Automated sequences and nurture campaigns (setup ready)
+- **CRM Integration**: Tracking templates for prospect management
+- **SEO Optimization**: Blog content with targeted construction industry keywords
 
-- **Frontend**: React with TypeScript, built using Vite
-- **Backend**: Node.js/Express server with TypeScript
-- **Database**: PostgreSQL via Neon with Drizzle ORM
-- **Authentication**: Replit OAuth integration
-- **Styling**: Tailwind CSS with shadcn/ui components
-- **State Management**: TanStack Query for server state
+**Core Technologies:**
+- **Frontend**: React with TypeScript (Vite)
+- **Backend**: Node.js/Express with TypeScript
+- **Database**: PostgreSQL (Neon) with Drizzle ORM
+- **Authentication**: Replit OAuth
+- **Styling**: Tailwind CSS with shadcn/ui
+- **State Management**: TanStack Query
 - **Real-time Updates**: Server-Sent Events (SSE)
 
-## Key Components
-
-### 1. Authentication & User Management
-- **Replit OAuth**: Integrated authentication using Replit's OIDC
-- **Session Management**: PostgreSQL-backed sessions with connect-pg-simple
-- **User Storage**: Mandatory user table structure for Replit Auth compatibility
-
-### 2. Database Schema (Drizzle ORM)
-- **Users**: Basic user profile and Stripe integration
-- **Accounts**: Company settings and QuickBooks tokens
-- **Vendors**: Contractor information synced from QuickBooks
-- **Documents**: W-9s and COI tracking with status and expiry
-- **Reminders**: Automated reminder history
-- **Bills**: Payment tracking for discount opportunities
-- **Timeline Events**: Activity feed for real-time updates
-
-### 3. External Service Integrations
-- **QuickBooks Online**: OAuth flow, vendor sync, bill tracking
-- **SendGrid**: Email notifications and reminders
-- **Twilio**: SMS reminder capabilities
-- **Stripe**: Subscription billing and payment processing
-- **Replit Object Storage**: Document file storage
-
-### 4. Frontend Architecture
-- **React Router**: Wouter for lightweight routing
-- **Component Library**: shadcn/ui components with Radix primitives
-- **Forms**: React Hook Form with Zod validation
-- **Responsive Design**: Mobile-first Tailwind CSS approach
-- **Real-time UI**: SSE integration for live updates
-
-### 5. Background Services
-- **Cron Jobs**: Automated QuickBooks sync, reminder scheduling, COI expiry checks
-- **Event Bus**: In-memory event system for real-time notifications
-- **File Processing**: Multer for document uploads with 10MB limit
-
-## Data Flow
-
-### 1. User Onboarding
-1. User signs up via Replit OAuth
-2. 4-step wizard: QuickBooks connection → reminder cadence → email templates → test & launch
-3. Initial QuickBooks sync pulls vendors and bills
-4. System begins monitoring for missing documents
-
-### 2. Document Collection Workflow
-1. Cron jobs sync new vendors/bills from QuickBooks every 20 minutes
-2. System identifies missing W-9s and COIs
-3. Automated reminders sent via email/SMS based on cadence settings
-4. Vendors upload documents via secure upload links
-5. Real-time notifications update dashboard via SSE
-
-### 3. Risk Management
-- COI expiry monitoring with proactive alerts
-- Early-payment discount tracking on bills
-- Compliance risk scoring based on missing documents
-- Timeline events for audit trail
+**Key Components & Features:**
+-   **Authentication & User Management**: Integrates Replit OAuth, PostgreSQL-backed sessions, and a mandatory user table structure.
+-   **Database Schema**: Manages users, accounts, QuickBooks-synced vendors, documents (W-9s, COIs with status/expiry), reminders, bills, and timeline events for activity tracking.
+-   **Frontend Architecture**: Utilizes Wouter for routing, shadcn/ui for components, React Hook Form with Zod for forms, and a mobile-first responsive design with Tailwind CSS. Real-time updates are driven by SSE.
+-   **Background Services**: Employs cron jobs for automated QuickBooks sync, reminder scheduling, and COI expiry checks. Includes an in-memory event bus and Multer for document uploads.
+-   **Document Collection Workflow**: Automatically syncs vendors and bills from QuickBooks, identifies missing documents, sends automated reminders via email/SMS, allows vendors to upload documents securely, and provides real-time dashboard updates.
+-   **Risk Management**: Monitors COI expiry, tracks early-payment discount opportunities on bills, and assesses compliance risk based on missing documents, with an audit trail via timeline events.
+-   **Monorepo Structure**: Centralizes client and server code for streamlined development and deployment.
+-   **Drizzle ORM**: Ensures type-safe database queries.
+-   **Server-Sent Events (SSE)**: Chosen for simpler real-time updates compared to WebSockets.
+-   **Replit-Native Integration**: Leverages Replit's authentication and object storage services.
+-   **Background Jobs**: Uses node-cron for reliable scheduled tasks without external dependencies.
+-   **Data Integrity Solution**: Implements a hybrid data model for vendor information, separating QuickBooks source fields from active fields and using override flags to preserve user manual edits during QuickBooks syncs.
 
 ## External Dependencies
-
-### Required Environment Variables
-- `DATABASE_URL`: Neon PostgreSQL connection string
-- `SESSION_SECRET`: Session encryption key
-- `QBO_CLIENT_ID`, `QBO_CLIENT_SECRET`: QuickBooks OAuth credentials
-- `SENDGRID_API_KEY`, `FROM_EMAIL`: Email service configuration
-- `TWILIO_*`: SMS service credentials (optional)
-- `STRIPE_SECRET_KEY`, `VITE_STRIPE_PUBLIC_KEY`: Payment processing
-- `REPLIT_DOMAINS`: Required for Replit OAuth
-
-### Third-party Services
-- **Neon Database**: Serverless PostgreSQL hosting
-- **QuickBooks Online API**: Vendor and bill data source
-- **SendGrid**: Transactional email delivery
-- **Twilio**: SMS messaging (optional feature)
-- **Stripe**: Subscription billing platform
-- **Replit Object Storage**: Document file storage
-
-## Deployment Strategy
-
-### Development
-- `npm run dev`: Starts development server with TSX for hot reloading
-- Vite dev server with HMR for frontend
-- Express server with middleware for API routes
-
-### Production Build
-- `npm run build`: Vite build for client + esbuild bundle for server
-- `npm start`: Runs production server from `dist/` directory
-- Database migrations via `npm run db:push` (Drizzle Kit)
-
-### Key Architectural Decisions
-
-1. **Monorepo Structure**: Simplifies development and deployment by keeping client/server code together
-2. **Drizzle ORM**: Type-safe database queries with PostgreSQL dialect
-3. **Server-Sent Events**: Chosen over WebSockets for simpler real-time updates
-4. **Replit-Native**: Leverages Replit's built-in authentication and services
-5. **Background Jobs**: Node-cron for reliable scheduled tasks without external dependencies
-6. **File Storage**: Replit Object Storage eliminates need for external S3 setup
-
-The architecture prioritizes rapid development and deployment while maintaining type safety and real-time user experience. The system is designed to handle the critical business workflow of document collection with automated reminders and compliance tracking.
-
-## Recent Changes
-
-**July 26, 2025:**
-✓ Completed comprehensive implementation status assessment
-✓ Identified 6 critical TypeScript errors blocking functionality  
-✓ Created detailed implementation roadmap (`implementation_roadmap.md`)
-✓ Fixed ALL TypeScript errors in cron service and onboarding page
-✓ Completed real QuickBooks API integration with proper OAuth callback handling
-✓ Implemented functional automated reminder system with email/SMS
-✓ Added comprehensive cron job automation for vendor sync and reminders
-✓ Enhanced storage interface with getAllAccounts method
-✓ Added COI expiry warning system with proactive notifications
-
-## Implementation Priorities
-
-**Completed (Week 1):**
-1. ✓ Fixed TypeScript errors in `server/services/cron.ts` (all 5 diagnostics resolved)
-2. ✓ Fixed onboarding type error in `client/src/pages/onboarding.tsx`
-3. ✓ Completed QuickBooks API integration with real data sync
-4. ✓ Built functional automated reminder system with proper cron jobs
-5. ✓ Enhanced email/SMS services with COI expiry warnings
-
-**Remaining High Priority:**
-- Implement Replit Object Storage for document uploads
-- Connect real-time SSE events to completed business logic
-- Test complete user workflow end-to-end
-
-**Current System Status:**
-- Cron service is fully operational with automated sync and reminders
-- QuickBooks integration uses real API calls with proper token handling
-- Email and SMS reminder systems are complete and functional
-- Background jobs run automatically every 20 minutes for sync, daily for reminders
+-   **Neon Database**: Serverless PostgreSQL hosting.
+-   **QuickBooks Online API**: For syncing vendor and bill data.
+-   **SendGrid**: For transactional email delivery and notifications.
+-   **Twilio**: For SMS messaging (optional feature).
+-   **Stripe**: For subscription billing and payment processing.
+-   **Replit Object Storage**: For storing uploaded documents.

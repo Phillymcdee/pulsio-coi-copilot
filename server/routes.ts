@@ -4,11 +4,14 @@ import { createServer, type Server } from "http";
 import { storage } from "./storage";
 import { setupAuth, isAuthenticated } from "./replitAuth";
 import { quickbooksService } from "./services/quickbooks";
-import { emailService } from "./services/sendgrid";
+import { emailService, sendEmail } from "./services/sendgrid";
 import { smsService } from "./services/twilio";
 import { stripeService } from "./services/stripe";
 import { sseService, eventBus } from "./services/sse";
 import { cronService } from "./services/cron";
+import { documentStorageService } from "./services/documentStorage";
+import { ocrService } from "./services/ocr";
+import { logger } from "./services/logger";
 import multer from 'multer';
 import { z } from 'zod';
 
@@ -146,17 +149,23 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Start initial sync
       setTimeout(async () => {
         try {
+          console.log(`Starting initial QuickBooks sync for account: ${accountId}`);
+          await quickbooksService.syncTerms(accountId as string);
           await quickbooksService.syncVendors(accountId as string);
           await quickbooksService.syncBills(accountId as string);
           
-          eventBus.emit('qbo.sync', { accountId, vendorCount: 0 });
+          // Get vendor count for event
+          const vendors = await storage.getVendorsByAccountId(accountId as string);
+          eventBus.emit('qbo.sync', { accountId, vendorCount: vendors.length });
+          
+          console.log('Initial QuickBooks sync completed successfully');
         } catch (error) {
           console.error('Error in initial QBO sync:', error);
         }
       }, 1000);
 
       // Redirect to success page
-      res.redirect(`${process.env.REPLIT_DOMAINS?.split(',')[0]}/onboarding?qbo=success`);
+      res.redirect(`https://${process.env.REPLIT_DOMAINS?.split(',')[0]}/onboarding?qbo=success`);
     } catch (error) {
       console.error("Error in QBO callback:", error);
       res.status(500).json({ message: "Failed to connect QuickBooks" });
@@ -178,6 +187,115 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error("Error fetching vendors:", error);
       res.status(500).json({ message: "Failed to fetch vendors" });
+    }
+  });
+
+  app.post('/api/vendors', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const account = await storage.getAccountByUserId(userId);
+      
+      if (!account) {
+        return res.status(404).json({ message: 'Account not found' });
+      }
+
+      const schema = z.object({
+        name: z.string().min(1),
+        email: z.string().email(),
+        phone: z.string().optional(),
+        notes: z.string().optional(),
+      });
+
+      const data = schema.parse(req.body);
+      const vendor = await storage.createVendor({
+        accountId: account.id,
+        qboId: null, // Manual vendors don't have QuickBooks ID
+        ...data,
+        w9Status: 'MISSING',
+        coiStatus: 'MISSING',
+      });
+
+      // Create timeline event
+      await storage.createTimelineEvent({
+        accountId: account.id,
+        vendorId: vendor.id,
+        eventType: 'vendor_added',
+        title: `New vendor added: ${vendor.name}`,
+        description: `Vendor added manually by user`,
+      });
+      
+      res.json(vendor);
+    } catch (error) {
+      console.error("Error creating vendor:", error);
+      res.status(500).json({ message: "Failed to create vendor" });
+    }
+  });
+
+  // Public vendor info route for upload portal (no auth required)
+  app.get('/api/vendors/:id/public', async (req, res) => {
+    try {
+      const { id } = req.params;
+      const vendor = await storage.getVendor(id);
+      
+      if (!vendor) {
+        return res.status(404).json({ message: 'Vendor not found' });
+      }
+
+      // Return only public info needed for upload portal
+      res.json({
+        id: vendor.id,
+        name: vendor.name,
+        email: vendor.email,
+        companyName: vendor.name, // Use vendor name as company name for now
+        w9Status: vendor.w9Status,
+        coiStatus: vendor.coiStatus,
+      });
+    } catch (error) {
+      console.error("Error fetching vendor for upload:", error);
+      res.status(500).json({ message: "Failed to fetch vendor" });
+    }
+  });
+
+  // Bills routes
+  app.get('/api/bills', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const account = await storage.getAccountByUserId(userId);
+      
+      if (!account) {
+        return res.status(404).json({ message: 'Account not found' });
+      }
+
+      const bills = await storage.getBillsWithDiscountInfo(account.id);
+      res.json(bills);
+    } catch (error) {
+      console.error("Error fetching bills:", error);
+      res.status(500).json({ message: "Failed to fetch bills" });
+    }
+  });
+
+  // Get documents for a vendor (authenticated route)
+  app.get('/api/vendors/:id/documents', isAuthenticated, async (req: any, res) => {
+    try {
+      const { id } = req.params;
+      const userId = req.user.claims.sub;
+      const account = await storage.getAccountByUserId(userId);
+      
+      if (!account) {
+        return res.status(404).json({ message: 'Account not found' });
+      }
+
+      // Verify vendor belongs to the user's account
+      const vendor = await storage.getVendor(id);
+      if (!vendor || vendor.accountId !== account.id) {
+        return res.status(404).json({ message: 'Vendor not found' });
+      }
+
+      const documents = await storage.getDocumentsByVendorId(id);
+      res.json(documents);
+    } catch (error) {
+      console.error("Error fetching vendor documents:", error);
+      res.status(500).json({ message: "Failed to fetch vendor documents" });
     }
   });
 
@@ -211,17 +329,198 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const { id } = req.params;
       const schema = z.object({
+        name: z.string().min(1).optional(),
+        email: z.string().email().or(z.literal('')).nullable().optional(),
+        phone: z.string().nullable().optional(),
         notes: z.string().optional(),
         isExempt: z.boolean().optional(),
       });
 
       const data = schema.parse(req.body);
-      const vendor = await storage.updateVendor(id, data);
+      
+      // Get current vendor to compare against QB source data
+      const currentVendor = await storage.getVendor(id);
+      if (!currentVendor) {
+        return res.status(404).json({ message: 'Vendor not found' });
+      }
+      
+      // Set override flags only when user edits differ from QB source data
+      const updateData: any = { ...data };
+      if (data.name !== undefined && currentVendor.qboId) {
+        updateData.nameOverride = data.name !== currentVendor.qboName;
+      }
+      if (data.email !== undefined && currentVendor.qboId) {
+        updateData.emailOverride = data.email !== currentVendor.qboEmail;
+      }
+      if (data.phone !== undefined && currentVendor.qboId) {
+        updateData.phoneOverride = data.phone !== currentVendor.qboPhone;
+      }
+      
+      const vendor = await storage.updateVendor(id, updateData);
+      
+      // Create timeline event if basic info was updated
+      if (data.name || data.email || data.phone) {
+        const account = await storage.getAccountByUserId(req.user.claims.sub);
+        if (account) {
+          await storage.createTimelineEvent({
+            accountId: account.id,
+            vendorId: vendor.id,
+            eventType: 'vendor_updated',
+            title: `Vendor updated: ${vendor.name}`,
+            description: `User manually updated vendor information (will override QB sync)`,
+          });
+        }
+      }
       
       res.json(vendor);
     } catch (error) {
       console.error("Error updating vendor:", error);
       res.status(500).json({ message: "Failed to update vendor" });
+    }
+  });
+
+  // Revert vendor fields to QuickBooks data
+  app.post('/api/vendors/:id/revert', isAuthenticated, async (req: any, res) => {
+    try {
+      const { id } = req.params;
+      const { fields } = req.body; // Array of fields to revert: ['name', 'email', 'phone']
+      
+      const vendor = await storage.getVendor(id);
+      if (!vendor) {
+        return res.status(404).json({ message: 'Vendor not found' });
+      }
+      
+      if (!vendor.qboId) {
+        return res.status(400).json({ message: 'Vendor is not synced from QuickBooks' });
+      }
+      
+      const updateData: any = {};
+      
+      // Revert specified fields to QuickBooks data
+      if (fields.includes('name') && vendor.qboName) {
+        updateData.name = vendor.qboName;
+        updateData.nameOverride = false;
+      }
+      if (fields.includes('email') && vendor.qboEmail) {
+        updateData.email = vendor.qboEmail;
+        updateData.emailOverride = false;
+      }
+      if (fields.includes('phone') && vendor.qboPhone) {
+        updateData.phone = vendor.qboPhone;
+        updateData.phoneOverride = false;
+      }
+      
+      const updatedVendor = await storage.updateVendor(id, updateData);
+      
+      // Create timeline event
+      const account = await storage.getAccountByUserId(req.user.claims.sub);
+      if (account) {
+        await storage.createTimelineEvent({
+          accountId: account.id,
+          vendorId: vendor.id,
+          eventType: 'vendor_reverted',
+          title: `Vendor data reverted: ${vendor.name}`,
+          description: `Reverted ${fields.join(', ')} to QuickBooks data`,
+        });
+      }
+      
+      res.json(updatedVendor);
+    } catch (error) {
+      console.error("Error reverting vendor:", error);
+      res.status(500).json({ message: "Failed to revert vendor data" });
+    }
+  });
+
+  // Manual QuickBooks sync endpoint for testing
+  app.post('/api/qbo/sync', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const account = await storage.getAccountByUserId(userId);
+      
+      if (!account) {
+        return res.status(404).json({ message: 'Account not found' });
+      }
+
+      if (!account.qboAccessToken || !account.qboCompanyId) {
+        return res.status(400).json({ message: 'QuickBooks not connected' });
+      }
+
+      console.log(`Manual sync requested for account: ${account.companyName}`);
+      
+      // Run sync with enhanced functionality
+      await quickbooksService.syncTerms(account.id);
+      await quickbooksService.syncVendors(account.id);
+      await quickbooksService.syncBills(account.id);
+      
+      // Get updated counts
+      const vendors = await storage.getVendorsByAccountId(account.id);
+      const terms = await storage.getTermsByAccountId(account.id);
+      
+      // Emit SSE event
+      eventBus.emit('qbo.sync', { 
+        accountId: account.id, 
+        vendorCount: vendors.length 
+      });
+      
+      res.json({ 
+        message: 'Sync completed successfully',
+        vendorCount: vendors.length,
+        termsCount: terms.length,
+        details: 'Payment terms, vendors, and bills synced with enhanced discount calculations'
+      });
+    } catch (error) {
+      console.error("Error in manual QBO sync:", error);
+      res.status(500).json({ message: "Failed to sync QuickBooks data" });
+    }
+  });
+
+  // Test email endpoint for SendGrid verification
+  app.post('/api/test-email', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const user = await storage.getUser(userId);
+      
+      if (!user?.email) {
+        return res.status(400).json({ message: 'User email not found' });
+      }
+
+      const testEmail = {
+        to: user.email,
+        from: process.env.FROM_EMAIL || 'noreply@pulsio.app',
+        subject: 'Pulsio Email Configuration Test',
+        html: `
+          <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+            <h2 style="color: #2563eb;">SendGrid Configuration Test</h2>
+            <p>Hello ${user.firstName || 'there'},</p>
+            <p>This is a test email to verify that your SendGrid configuration is working correctly.</p>
+            <p>✅ If you're reading this, your email system is properly configured!</p>
+            <p>Best regards,<br>The Pulsio Team</p>
+          </div>
+        `,
+        text: `SendGrid Configuration Test\n\nHello ${user.firstName || 'there'},\n\nThis is a test email to verify that your SendGrid configuration is working correctly.\n\n✅ If you're reading this, your email system is properly configured!\n\nBest regards,\nThe Pulsio Team`
+      };
+
+      const success = await sendEmail(testEmail);
+      
+      if (success) {
+        res.json({ 
+          success: true, 
+          message: `Test email sent successfully to ${user.email}`,
+          emailSent: user.email
+        });
+      } else {
+        res.status(500).json({ 
+          success: false, 
+          message: 'Failed to send test email' 
+        });
+      }
+    } catch (error) {
+      console.error('Test email error:', error);
+      res.status(500).json({ 
+        success: false, 
+        message: 'Error sending test email',
+        error: error instanceof Error ? error.message : String(error)
+      });
     }
   });
 
@@ -231,7 +530,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const { id } = req.params;
       const { type, channel } = req.body;
       
-      const uploadLink = `${process.env.REPLIT_DOMAINS?.split(',')[0]}/upload/${id}`;
+      const uploadLink = `https://${process.env.REPLIT_DOMAINS?.split(',')[0]}/upload/${id}`;
       
       let success = false;
       
@@ -250,6 +549,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       if (success) {
+        // Get vendor info for SSE event
+        const vendor = await storage.getVendor(id);
+        if (vendor) {
+          // Emit SSE event for reminder sent
+          eventBus.emit('reminder.sent', {
+            accountId: vendor.accountId,
+            vendorName: vendor.name,
+            docType: type,
+            channel,
+          });
+        }
+        
         res.json({ success: true, message: 'Reminder sent successfully' });
       } else {
         res.status(500).json({ message: 'Failed to send reminder' });
@@ -280,10 +591,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(404).json({ message: 'Vendor not found' });
       }
 
-      // Here you would upload to Replit Object Storage
-      // For now, we'll simulate it
-      const storageKey = `${vendor.accountId}/${vendorId}/${Date.now()}-${file.originalname}`;
-      const publicUrl = `https://storage.replit.com/${storageKey}`;
+      // Upload to Replit Object Storage
+      const storageKey = documentStorageService.generateStorageKey(
+        vendor.accountId,
+        vendorId,
+        type,
+        file.originalname
+      );
+      
+      await documentStorageService.uploadDocument(file.buffer, storageKey, file.mimetype);
+      const publicUrl = documentStorageService.getDocumentUrl(storageKey);
 
       // Create document record
       const document = await storage.createDocument({
@@ -297,18 +614,58 @@ export async function registerRoutes(app: Express): Promise<Server> {
         mimeType: file.mimetype,
       });
 
-      // Update vendor status
+      // Update vendor status and extract expiry date for COI
       if (type === 'W9') {
         await storage.updateVendor(vendorId, { w9Status: 'RECEIVED' });
+        
+        // Check if we can now capture early payment discounts
+        const capturedAmount = await quickbooksService.captureEarlyPaymentDiscounts(vendorId);
+        if (capturedAmount > 0) {
+          eventBus.emit('discount.captured', {
+            accountId: vendor.accountId,
+            vendorName: vendor.name,
+            amount: capturedAmount,
+          });
+        }
       } else if (type === 'COI') {
-        // For COI, extract expiry date (would need OCR in production)
-        const expiryDate = new Date();
-        expiryDate.setFullYear(expiryDate.getFullYear() + 1); // Assume 1 year validity
+        // Extract actual expiry date from COI document using OCR
+        const { expiryDate: extractedDate, extractedText } = await ocrService.extractCOIInformation(file.buffer, file.mimetype);
+        
+        // Use extracted date or fall back to 1 year from now
+        const expiryDate = extractedDate || (() => {
+          const fallbackDate = new Date();
+          fallbackDate.setFullYear(fallbackDate.getFullYear() + 1);
+          console.warn(`No expiry date found in COI for ${vendor.name}, using 1-year fallback`);
+          return fallbackDate;
+        })();
+        
+        // Update document record with extracted text
+        await storage.updateDocument(document.id, { 
+          extractedText: extractedText || null,
+          expiresAt: expiryDate 
+        });
         
         await storage.updateVendor(vendorId, { 
           coiStatus: 'RECEIVED',
           coiExpiry: expiryDate,
         });
+
+        // Check if we can now capture early payment discounts
+        const capturedAmount = await quickbooksService.captureEarlyPaymentDiscounts(vendorId);
+        if (capturedAmount > 0) {
+          eventBus.emit('discount.captured', {
+            accountId: vendor.accountId,
+            vendorName: vendor.name,
+            amount: capturedAmount,
+          });
+        }
+
+        // Log the result for monitoring
+        if (extractedDate) {
+          console.log(`COI expiry date extracted for ${vendor.name}: ${expiryDate.toISOString()}`);
+        } else {
+          console.log(`COI uploaded for ${vendor.name} - using fallback expiry date: ${expiryDate.toISOString()}`);
+        }
       }
 
       // Create timeline event
@@ -331,6 +688,35 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error("Error uploading document:", error);
       res.status(500).json({ message: "Failed to upload document" });
+    }
+  });
+
+  // Document download route
+  app.get('/api/documents/download/:storageKey', async (req, res) => {
+    try {
+      const { storageKey } = req.params;
+      const decodedStorageKey = decodeURIComponent(storageKey);
+
+      // Get document info from database
+      const document = await storage.getDocumentByStorageKey(decodedStorageKey);
+      if (!document) {
+        return res.status(404).json({ message: 'Document not found' });
+      }
+
+      // Download document from storage
+      const fileBuffer = await documentStorageService.downloadDocument(decodedStorageKey);
+
+      // Set appropriate headers
+      res.set({
+        'Content-Type': document.mimeType,
+        'Content-Disposition': `attachment; filename="${document.filename}"`,
+        'Content-Length': fileBuffer.length.toString(),
+      });
+
+      res.send(fileBuffer);
+    } catch (error) {
+      console.error("Error downloading document:", error);
+      res.status(500).json({ message: "Failed to download document" });
     }
   });
 
@@ -387,11 +773,27 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post('/api/create-portal-session', isAuthenticated, async (req: any, res) => {
     try {
       const userId = req.user.claims.sub;
+      logger.info('Creating Stripe portal session for user', { userId });
+      
       const url = await stripeService.createPortalSession(userId);
+      
+      logger.info('Stripe portal session created successfully', { 
+        userId, 
+        portalUrl: url.substring(0, 50) + '...' 
+      });
+      
       res.json({ url });
     } catch (error) {
-      console.error("Error creating portal session:", error);
-      res.status(500).json({ message: "Failed to create portal session" });
+      logger.error('Error creating portal session', { 
+        userId: req.user?.claims?.sub, 
+        error: error instanceof Error ? error.message : String(error),
+        stack: error instanceof Error ? error.stack : undefined
+      });
+      
+      res.status(500).json({ 
+        message: "Failed to create portal session",
+        error: error instanceof Error ? error.message : String(error)
+      });
     }
   });
 
@@ -441,6 +843,39 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error("Error starting sync:", error);
       res.status(500).json({ message: "Failed to start sync" });
+    }
+  });
+
+  // OCR Debug endpoint - View extracted text from documents
+  app.get('/api/debug/ocr/:documentId', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const account = await storage.getAccountByUserId(userId);
+      const { documentId } = req.params;
+      
+      if (!account) {
+        return res.status(404).json({ message: 'Account not found' });
+      }
+
+      const document = await storage.getDocumentById(documentId);
+      if (!document || document.accountId !== account.id) {
+        return res.status(404).json({ message: 'Document not found' });
+      }
+
+      res.json({
+        document: {
+          id: document.id,
+          type: document.type,
+          filename: document.filename,
+          uploadedAt: document.uploadedAt,
+          expiresAt: document.expiresAt,
+          extractedText: document.extractedText,
+        },
+        vendor: await storage.getVendor(document.vendorId),
+      });
+    } catch (error) {
+      console.error("Error fetching OCR debug data:", error);
+      res.status(500).json({ message: "Failed to fetch OCR debug data" });
     }
   });
 

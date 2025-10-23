@@ -1,8 +1,37 @@
 import express, { type Request, Response, NextFunction } from "express";
+import rateLimit from "express-rate-limit";
+import helmet from "helmet";
+import compression from "compression";
 import { registerRoutes } from "./routes";
 import { setupVite, serveStatic, log } from "./vite";
+import { logger } from "./services/logger";
 
 const app = express();
+
+// Security middleware - must be first
+app.use(helmet({
+  contentSecurityPolicy: false, // Allow inline scripts for Vite dev mode
+  crossOriginEmbedderPolicy: false // Allow cross-origin resources
+}));
+
+app.use(compression()); // Enable gzip compression
+
+// Rate limiting
+const limiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 minutes
+  max: 100, // Limit each IP to 100 requests per windowMs
+  message: {
+    error: 'Too many requests from this IP, please try again later.',
+    retryAfter: '15 minutes'
+  },
+  standardHeaders: true,
+  legacyHeaders: false,
+  // Skip rate limiting for development
+  skip: () => process.env.NODE_ENV === 'development'
+});
+
+app.use('/api', limiter);
+
 app.use(express.json());
 app.use(express.urlencoded({ extended: false }));
 
@@ -20,16 +49,11 @@ app.use((req, res, next) => {
   res.on("finish", () => {
     const duration = Date.now() - start;
     if (path.startsWith("/api")) {
-      let logLine = `${req.method} ${path} ${res.statusCode} in ${duration}ms`;
-      if (capturedJsonResponse) {
-        logLine += ` :: ${JSON.stringify(capturedJsonResponse)}`;
-      }
-
-      if (logLine.length > 80) {
-        logLine = logLine.slice(0, 79) + "…";
-      }
-
-      log(logLine);
+      logger.request(req.method, path, res.statusCode, duration, {
+        responseData: capturedJsonResponse && Object.keys(capturedJsonResponse).length < 10 
+          ? capturedJsonResponse 
+          : { summary: `${Object.keys(capturedJsonResponse || {}).length} fields` }
+      });
     }
   });
 
@@ -66,6 +90,10 @@ app.use((req, res, next) => {
     host: "0.0.0.0",
     reusePort: true,
   }, () => {
-    log(`serving on port ${port}`);
+    logger.info(`Pulsio server started on port ${port}`, { 
+      environment: process.env.NODE_ENV,
+      host: "0.0.0.0",
+      port 
+    });
   });
 })();

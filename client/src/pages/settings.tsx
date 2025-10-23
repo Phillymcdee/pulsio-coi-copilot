@@ -4,6 +4,7 @@ import { useToast } from "@/hooks/use-toast";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
 import { isUnauthorizedError } from "@/lib/authUtils";
+import { formatDistanceToNow } from "date-fns";
 import { Navigation } from "@/components/layout/Navigation";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -68,10 +69,10 @@ export default function Settings() {
   useEffect(() => {
     if (account) {
       reset({
-        companyName: account.companyName || '',
-        reminderCadence: account.reminderCadence || '0 9 * * *',
-        emailTemplate: account.emailTemplate || '',
-        smsTemplate: account.smsTemplate || '',
+        companyName: (account as any).companyName || '',
+        reminderCadence: (account as any).reminderCadence || '0 9 * * *',
+        emailTemplate: (account as any).emailTemplate || '',
+        smsTemplate: (account as any).smsTemplate || '',
       });
     }
   }, [account, reset]);
@@ -303,12 +304,33 @@ export default function Settings() {
                 <div>
                   <Label htmlFor="emailTemplate">Email Template</Label>
                   <p className="text-sm text-gray-600 mb-2">
-                    Customize your email reminder template. Leave blank to use our professional default.
+                    Customize your email reminder template. Leave blank to use our professional default shown below.
                   </p>
+                  
+                  {/* Default Email Template Preview */}
+                  <div className="mb-3 p-4 bg-gray-50 rounded-lg border">
+                    <p className="font-medium text-gray-700 mb-2">Default Email Template:</p>
+                    <div className="bg-white p-3 rounded border text-sm space-y-2">
+                      <p><strong>Subject:</strong> W-9 Form Required - {'{{company_name}}'}</p>
+                      <div className="border-t pt-2 space-y-2 text-gray-700">
+                        <h3 className="text-lg font-semibold text-blue-600">W-9 Form Required</h3>
+                        <p>Hello <span className="bg-yellow-100 px-1 rounded">{'{{vendor_name}}'}</span>,</p>
+                        <p>We need your completed W-9 form for our records. This is required for tax reporting purposes.</p>
+                        <div className="my-4">
+                          <span className="bg-blue-600 text-white px-4 py-2 rounded inline-block text-sm">
+                            Upload W-9 Form
+                          </span>
+                        </div>
+                        <p>If you have any questions, please don't hesitate to contact us.</p>
+                        <p>Best regards,<br/><span className="bg-yellow-100 px-1 rounded">{'{{company_name}}'}</span></p>
+                      </div>
+                    </div>
+                  </div>
+                  
                   <Textarea
                     id="emailTemplate"
                     {...register("emailTemplate")}
-                    placeholder="Hello {{vendor_name}}, we need your W-9 form for tax reporting..."
+                    placeholder="Leave blank to use the default template above, or enter your custom HTML template..."
                     rows={6}
                     className="mt-1"
                   />
@@ -320,12 +342,22 @@ export default function Settings() {
                 <div>
                   <Label htmlFor="smsTemplate">SMS Template</Label>
                   <p className="text-sm text-gray-600 mb-2">
-                    Short message for SMS reminders. Keep under 160 characters.
+                    Short message for SMS reminders. Leave blank to use our default shown below.
                   </p>
+                  
+                  {/* Default SMS Template Preview */}
+                  <div className="mb-3 p-4 bg-gray-50 rounded-lg border">
+                    <p className="font-medium text-gray-700 mb-2">Default SMS Template:</p>
+                    <div className="bg-white p-3 rounded border text-sm font-mono">
+                      Hi <span className="bg-yellow-100 px-1 rounded">{'{{vendor_name}}'}</span>, we need your W-9 form for tax reporting. Please upload it here: <span className="bg-yellow-100 px-1 rounded">{'{{upload_link}}'}</span> - <span className="bg-yellow-100 px-1 rounded">{'{{company_name}}'}</span>
+                    </div>
+                    <p className="text-xs text-gray-500 mt-2">156 characters (within 160 SMS limit)</p>
+                  </div>
+                  
                   <Textarea
                     id="smsTemplate"
                     {...register("smsTemplate")}
-                    placeholder="Hi {{vendor_name}}, please upload your W-9: {{upload_link}} - {{company_name}}"
+                    placeholder="Leave blank to use the default template above, or enter your custom SMS template..."
                     rows={3}
                     className="mt-1"
                   />
@@ -361,11 +393,11 @@ export default function Settings() {
                 <div>
                   <div className="font-medium">Connection Status</div>
                   <div className="text-sm text-gray-600">
-                    {account?.qboAccessToken ? 'Connected and syncing' : 'Not connected'}
+                    {(account as any)?.qboAccessToken ? 'Connected and syncing' : 'Not connected'}
                   </div>
                 </div>
                 <div className="flex items-center space-x-2">
-                  {account?.qboAccessToken ? (
+                  {(account as any)?.qboAccessToken ? (
                     <Badge variant="secondary" className="text-green-700 bg-green-50">
                       <CheckCircle className="w-3 h-3 mr-1" />
                       Connected
@@ -378,7 +410,7 @@ export default function Settings() {
                 </div>
               </div>
               
-              {account?.qboAccessToken && (
+              {(account as any)?.qboAccessToken && (
                 <div className="flex items-center space-x-2">
                   <Button
                     variant="outline"
@@ -394,7 +426,7 @@ export default function Settings() {
                     Sync Now
                   </Button>
                   <p className="text-sm text-gray-500">
-                    Last sync: {account.updatedAt ? formatDistanceToNow(new Date(account.updatedAt), { addSuffix: true }) : 'Never'}
+                    Last sync: {(account as any)?.updatedAt ? formatDistanceToNow(new Date((account as any).updatedAt), { addSuffix: true }) : 'Never'}
                   </p>
                 </div>
               )}
@@ -414,11 +446,11 @@ export default function Settings() {
                 <div>
                   <div className="font-medium">Current Plan</div>
                   <div className="text-sm text-gray-600">
-                    {account?.plan || 'Free Trial'} Plan
+                    {(account as any)?.plan || 'Free Trial'} Plan
                   </div>
                 </div>
                 <Badge variant="secondary">
-                  {account?.plan || 'Trial'}
+                  {(account as any)?.plan || 'Trial'}
                 </Badge>
               </div>
               

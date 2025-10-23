@@ -6,7 +6,7 @@ if (!process.env.STRIPE_SECRET_KEY) {
 }
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY, {
-  apiVersion: "2023-10-16",
+  apiVersion: "2025-06-30.basil",
 });
 
 export class StripeService {
@@ -39,7 +39,7 @@ export class StripeService {
       if (subscription.status === 'active' || subscription.status === 'trialing') {
         return {
           subscriptionId: subscription.id,
-          clientSecret: (subscription.latest_invoice as Stripe.Invoice)?.payment_intent?.client_secret || '',
+          clientSecret: '',
         };
       }
     }
@@ -55,29 +55,119 @@ export class StripeService {
     // Update user with subscription ID
     await storage.updateUserStripeInfo(user.id, customerId, subscription.id);
 
-    const invoice = subscription.latest_invoice as Stripe.Invoice;
-    const paymentIntent = invoice.payment_intent as Stripe.PaymentIntent;
+    const invoice = subscription.latest_invoice;
+    let clientSecret = '';
+    
+    if (invoice && typeof invoice === 'object' && 'payment_intent' in invoice) {
+      const paymentIntent = invoice.payment_intent;
+      if (paymentIntent && typeof paymentIntent === 'object' && 'client_secret' in paymentIntent) {
+        clientSecret = (paymentIntent as any).client_secret || '';
+      }
+    }
 
     return {
       subscriptionId: subscription.id,
-      clientSecret: paymentIntent.client_secret || '',
+      clientSecret,
     };
   }
 
   async createPortalSession(userId: string): Promise<string> {
+    console.log(`Creating portal session for user: ${userId}`);
+    
     const user = await storage.getUser(userId);
-    if (!user?.stripeCustomerId) {
-      throw new Error('No stripe customer found');
+    if (!user) {
+      throw new Error('User not found');
     }
 
-    const returnUrl = `${process.env.REPLIT_DOMAINS?.split(',')[0]}/settings`;
+    console.log(`User found: ${user.email}, existing customerId: ${user.stripeCustomerId}`);
 
-    const session = await stripe.billingPortal.sessions.create({
-      customer: user.stripeCustomerId,
-      return_url: returnUrl,
-    });
+    let customerId = user.stripeCustomerId;
 
-    return session.url;
+    // Create customer if doesn't exist
+    if (!customerId) {
+      console.log('Creating new Stripe customer...');
+      
+      try {
+        const customer = await stripe.customers.create({
+          email: user.email || undefined,
+          name: user.firstName && user.lastName ? `${user.firstName} ${user.lastName}` : undefined,
+          metadata: {
+            userId: user.id,
+            replit_user: 'true'
+          }
+        });
+        
+        customerId = customer.id;
+        console.log(`Stripe customer created: ${customerId}`);
+        
+        await storage.updateUserStripeInfo(user.id, customerId);
+        console.log('User updated with Stripe customer ID');
+      } catch (stripeError) {
+        console.error('Failed to create Stripe customer:', stripeError);
+        throw new Error(`Failed to create Stripe customer: ${stripeError instanceof Error ? stripeError.message : String(stripeError)}`);
+      }
+    }
+
+    const domain = process.env.REPLIT_DOMAINS?.split(',')[0];
+    if (!domain) {
+      throw new Error('REPLIT_DOMAINS environment variable not configured');
+    }
+    
+    const returnUrl = `https://${domain}/settings`;
+    console.log(`Creating portal session with return URL: ${returnUrl}`);
+
+    try {
+      // First, try to create a portal configuration if none exists
+      try {
+        const session = await stripe.billingPortal.sessions.create({
+          customer: customerId,
+          return_url: returnUrl,
+        });
+
+        console.log(`Portal session created successfully: ${session.id}`);
+        return session.url;
+      } catch (configError: any) {
+        if (configError.message?.includes('No configuration provided')) {
+          console.log('Creating default billing portal configuration...');
+          
+          // Create a minimal configuration for the billing portal
+          const configuration = await stripe.billingPortal.configurations.create({
+            business_profile: {
+              privacy_policy_url: `https://${domain}`,
+              terms_of_service_url: `https://${domain}`,
+            },
+            features: {
+              payment_method_update: {
+                enabled: true,
+              },
+              subscription_cancel: {
+                enabled: true,
+                mode: 'at_period_end',
+              },
+              invoice_history: {
+                enabled: true,
+              },
+            },
+          });
+
+          console.log(`Created billing portal configuration: ${configuration.id}`);
+
+          // Now create the session with the new configuration
+          const session = await stripe.billingPortal.sessions.create({
+            customer: customerId,
+            return_url: returnUrl,
+            configuration: configuration.id,
+          });
+
+          console.log(`Portal session created successfully with new config: ${session.id}`);
+          return session.url;
+        }
+        throw configError;
+      }
+    } catch (stripeError) {
+      console.error('Failed to create billing portal session:', stripeError);
+      throw new Error(`Failed to create billing portal session: ${stripeError instanceof Error ? stripeError.message : String(stripeError)}`);
+    }
   }
 
   async handleWebhook(rawBody: string, signature: string): Promise<void> {
@@ -133,35 +223,71 @@ export class StripeService {
     // Could send failure notification email here
   }
 
-  async getPricing(): Promise<{ starter: any; pro: any; agency: any }> {
-    // Return static pricing info - in production, you might fetch from Stripe
+  async getPricing(): Promise<{ starter: any; growth: any; pro: any }> {
+    // Return vendor-based pricing info - in production, you might fetch from Stripe
     return {
       starter: {
         id: 'starter',
         name: 'Starter',
-        price: 99,
+        price: 59,
+        annualPrice: 49,
+        vendorLimit: 25,
         currency: 'usd',
         interval: 'month',
-        features: ['200 reminders/month', 'Email & SMS reminders', 'Basic dashboard', 'QuickBooks sync'],
+        features: [
+          'Up to 25 vendors',
+          'Unlimited W-9 & COI requests',
+          'Automated reminders & expiry tracking',
+          'QuickBooks Online sync (Plus & Advanced)',
+          'ROI dashboard (money at risk vs. saved)',
+          'Email & in-app support',
+          'Document storage & management'
+        ],
         priceId: process.env.STRIPE_PRICE_STARTER || 'price_starter',
+      },
+      growth: {
+        id: 'growth',
+        name: 'Growth',
+        price: 139,
+        annualPrice: 119,
+        vendorLimit: 75,
+        currency: 'usd',
+        interval: 'month',
+        features: [
+          'Up to 75 vendors',
+          'Unlimited W-9 & COI requests',
+          'Automated reminders & expiry tracking',
+          'QuickBooks Online sync (Plus & Advanced)',
+          'ROI dashboard (money at risk vs. saved)',
+          'Priority email & phone support',
+          'Document storage & management',
+          'Custom email templates',
+          'Advanced reporting & analytics'
+        ],
+        priceId: process.env.STRIPE_PRICE_GROWTH || 'price_growth',
       },
       pro: {
         id: 'pro',
         name: 'Pro',
-        price: 199,
+        price: 259,
+        annualPrice: 219,
+        vendorLimit: 150,
         currency: 'usd',
         interval: 'month',
-        features: ['500 reminders/month', 'Multi-location support', 'Advanced templates', 'Priority support'],
+        features: [
+          'Up to 150 vendors',
+          'Unlimited W-9 & COI requests',
+          'Automated reminders & expiry tracking',
+          'QuickBooks Online sync (Plus & Advanced)',
+          'ROI dashboard (money at risk vs. saved)',
+          'Priority email & phone support',
+          'Document storage & management',
+          'Custom email & SMS templates',
+          'Advanced reporting & analytics',
+          'Multi-location support',
+          'Dedicated account manager'
+        ],
         priceId: process.env.STRIPE_PRICE_PRO || 'price_pro',
-      },
-      agency: {
-        id: 'agency',
-        name: 'Agency',
-        price: 399,
-        currency: 'usd',
-        interval: 'month',
-        features: ['Unlimited reminders', 'White-label options', 'Custom integrations', 'Dedicated support'],
-        priceId: process.env.STRIPE_PRICE_AGENCY || 'price_agency',
       },
     };
   }

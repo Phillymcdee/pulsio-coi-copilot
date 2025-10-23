@@ -5,6 +5,7 @@ import {
   documents,
   reminders,
   bills,
+  terms,
   timelineEvents,
   type User,
   type UpsertUser,
@@ -16,6 +17,8 @@ import {
   type InsertDocument,
   type Reminder,
   type InsertReminder,
+  type Terms,
+  type InsertTerms,
   type Bill,
   type InsertBill,
   type TimelineEvent,
@@ -27,10 +30,12 @@ import { eq, and, desc, asc, sql, count, sum } from "drizzle-orm";
 export interface IStorage {
   // User operations (mandatory for Replit Auth)
   getUser(id: string): Promise<User | undefined>;
+  getUserByEmail(email: string): Promise<User | undefined>;
   upsertUser(user: UpsertUser): Promise<User>;
   updateUserStripeInfo(id: string, stripeCustomerId: string, stripeSubscriptionId?: string): Promise<User>;
 
   // Account operations
+  getAccount(accountId: string): Promise<Account | undefined>;
   getAccountByUserId(userId: string): Promise<Account | undefined>;
   getAllAccounts(): Promise<Account[]>;
   createAccount(account: InsertAccount): Promise<Account>;
@@ -45,6 +50,7 @@ export interface IStorage {
 
   // Document operations
   getDocumentsByVendorId(vendorId: string): Promise<Document[]>;
+  getDocumentByStorageKey(storageKey: string): Promise<Document | undefined>;
   createDocument(document: InsertDocument): Promise<Document>;
   updateDocument(id: string, updates: Partial<InsertDocument>): Promise<Document>;
 
@@ -58,6 +64,10 @@ export interface IStorage {
   createBill(bill: InsertBill): Promise<Bill>;
   updateBill(id: string, updates: Partial<InsertBill>): Promise<Bill>;
   getBillByQboId(accountId: string, qboId: string): Promise<Bill | undefined>;
+  getBillsWithDiscountInfo(accountId: string): Promise<any[]>;
+
+  // Terms operations
+  createTerms(terms: InsertTerms): Promise<Terms>;
 
   // Timeline operations
   getTimelineEventsByAccountId(accountId: string, limit?: number): Promise<TimelineEvent[]>;
@@ -65,12 +75,15 @@ export interface IStorage {
 
   // Dashboard stats
   getDashboardStats(accountId: string): Promise<{
-    remindersSent: number;
-    docsReceived: number;
     totalVendors: number;
-    moneyAtRisk: number;
+    compliantVendors: number;
+    compliancePercentage: number;
+    missingDocsCount: number;
     missingDocs: Array<{ vendorName: string; docType: string; vendorId: string }>;
+    expiringCOIsCount: number;
     expiringCOIs: Array<{ vendorName: string; daysUntilExpiry: number; vendorId: string }>;
+    moneyAtRisk: number;
+    remindersSent: number;
   }>;
 }
 
@@ -78,6 +91,11 @@ export class DatabaseStorage implements IStorage {
   // User operations
   async getUser(id: string): Promise<User | undefined> {
     const [user] = await db.select().from(users).where(eq(users.id, id));
+    return user;
+  }
+
+  async getUserByEmail(email: string): Promise<User | undefined> {
+    const [user] = await db.select().from(users).where(eq(users.email, email));
     return user;
   }
 
@@ -113,6 +131,11 @@ export class DatabaseStorage implements IStorage {
   // Account operations
   async getAccountByUserId(userId: string): Promise<Account | undefined> {
     const [account] = await db.select().from(accounts).where(eq(accounts.userId, userId));
+    return account;
+  }
+
+  async getAccount(accountId: string): Promise<Account | undefined> {
+    const [account] = await db.select().from(accounts).where(eq(accounts.id, accountId));
     return account;
   }
 
@@ -179,6 +202,22 @@ export class DatabaseStorage implements IStorage {
       .where(eq(documents.vendorId, vendorId))
       .orderBy(desc(documents.uploadedAt));
     return docs;
+  }
+
+  async getDocumentByStorageKey(storageKey: string): Promise<Document | undefined> {
+    const [document] = await db
+      .select()
+      .from(documents)
+      .where(eq(documents.storageKey, storageKey));
+    return document;
+  }
+
+  async getDocumentById(documentId: string): Promise<Document | undefined> {
+    const [document] = await db
+      .select()
+      .from(documents)
+      .where(eq(documents.id, documentId));
+    return document;
   }
 
   async createDocument(documentData: InsertDocument): Promise<Document> {
@@ -251,6 +290,38 @@ export class DatabaseStorage implements IStorage {
     return bill;
   }
 
+  // Terms operations
+  async getTermsByAccountId(accountId: string): Promise<Terms[]> {
+    const termsList = await db
+      .select()
+      .from(terms)
+      .where(eq(terms.accountId, accountId))
+      .orderBy(desc(terms.createdAt));
+    return termsList;
+  }
+
+  async getTermsByQboId(accountId: string, qboId: string): Promise<Terms | undefined> {
+    const [term] = await db
+      .select()
+      .from(terms)
+      .where(and(eq(terms.accountId, accountId), eq(terms.qboId, qboId)));
+    return term;
+  }
+
+  async createTerms(termsData: InsertTerms): Promise<Terms> {
+    const [term] = await db.insert(terms).values(termsData).returning();
+    return term;
+  }
+
+  async updateTerms(id: string, updates: Partial<InsertTerms>): Promise<Terms> {
+    const [term] = await db
+      .update(terms)
+      .set({ ...updates, updatedAt: new Date() })
+      .where(eq(terms.id, id))
+      .returning();
+    return term;
+  }
+
   // Timeline operations
   async getTimelineEventsByAccountId(accountId: string, limit = 50): Promise<TimelineEvent[]> {
     const events = await db
@@ -269,35 +340,16 @@ export class DatabaseStorage implements IStorage {
 
   // Dashboard stats
   async getDashboardStats(accountId: string) {
-    // Get reminder count
-    const [reminderCount] = await db
-      .select({ count: count() })
-      .from(reminders)
-      .where(eq(reminders.accountId, accountId));
-
-    // Get document count
-    const [docCount] = await db
-      .select({ count: count() })
-      .from(documents)
-      .where(eq(documents.accountId, accountId));
-
-    // Get vendor count
+    // Get vendor count (from QuickBooks sync)
     const [vendorCount] = await db
       .select({ count: count() })
       .from(vendors)
-      .where(eq(vendors.accountId, accountId));
-
-    // Get money at risk (sum of discount amounts for unpaid bills)
-    const [moneyAtRiskResult] = await db
-      .select({ total: sum(bills.discountAmount) })
-      .from(bills)
       .where(and(
-        eq(bills.accountId, accountId),
-        eq(bills.isPaid, false),
-        sql`${bills.discountAmount} > 0`
+        eq(vendors.accountId, accountId),
+        sql`${vendors.qboId} IS NOT NULL`
       ));
 
-    // Get missing documents
+    // Get missing documents data
     const missingDocsData = await db
       .select({
         vendorName: vendors.name,
@@ -308,6 +360,7 @@ export class DatabaseStorage implements IStorage {
       .from(vendors)
       .where(and(
         eq(vendors.accountId, accountId),
+        sql`${vendors.qboId} IS NOT NULL`,
         sql`(${vendors.w9Status} = 'MISSING' OR ${vendors.coiStatus} = 'MISSING')`
       ));
 
@@ -332,6 +385,7 @@ export class DatabaseStorage implements IStorage {
       .from(vendors)
       .where(and(
         eq(vendors.accountId, accountId),
+        sql`${vendors.qboId} IS NOT NULL`,
         sql`${vendors.coiExpiry} IS NOT NULL AND ${vendors.coiExpiry} <= NOW() + INTERVAL '30 days'`
       ));
 
@@ -343,14 +397,87 @@ export class DatabaseStorage implements IStorage {
         : 0
     }));
 
+    // Calculate vendor compliance stats
+    const totalVendors = vendorCount.count || 0;
+    const vendorsWithMissingDocs = missingDocsData.length;
+    const compliantVendors = totalVendors - vendorsWithMissingDocs;
+    const compliancePercentage = totalVendors > 0 ? Math.round((compliantVendors / totalVendors) * 100) : 100;
+
+    // Get money at risk (sum of discount amounts for outstanding bills with available discounts)
+    const [moneyAtRiskResult] = await db
+      .select({ total: sum(bills.discountAmount) })
+      .from(bills)
+      .where(and(
+        eq(bills.accountId, accountId),
+        sql`${bills.balance} > 0`, // Use balance for accurate payment status
+        sql`${bills.discountAmount} > 0`,
+        sql`${bills.discountDueDate} > NOW()`, // Only include available discounts
+        eq(bills.discountCaptured, false)
+      ));
+
+    // Get reminder count
+    const [reminderCount] = await db
+      .select({ count: count() })
+      .from(reminders)
+      .where(eq(reminders.accountId, accountId));
+
     return {
-      remindersSent: reminderCount.count || 0,
-      docsReceived: docCount.count || 0,
-      totalVendors: vendorCount.count || 0,
-      moneyAtRisk: parseFloat(moneyAtRiskResult.total || '0'),
+      totalVendors,
+      compliantVendors,
+      compliancePercentage,
+      missingDocsCount: missingDocs.length,
       missingDocs,
+      expiringCOIsCount: expiringCOIsFormatted.length,
       expiringCOIs: expiringCOIsFormatted,
+      moneyAtRisk: parseFloat(moneyAtRiskResult.total || '0'),
+      remindersSent: reminderCount.count || 0,
     };
+  }
+
+  async getBillsWithDiscountInfo(accountId: string) {
+    const billsData = await db
+      .select({
+        billId: bills.id,
+        billNumber: bills.billNumber,
+        amount: bills.amount,
+        balance: bills.balance,
+        discountAmount: bills.discountAmount,
+        discountDueDate: bills.discountDueDate,
+        discountCaptured: bills.discountCaptured,
+        createdAt: bills.createdAt,
+        vendorId: bills.vendorId,
+        vendorName: vendors.name,
+        vendorW9Status: vendors.w9Status,
+        vendorCoiStatus: vendors.coiStatus,
+        termsName: terms.name,
+      })
+      .from(bills)
+      .innerJoin(vendors, eq(bills.vendorId, vendors.id))
+      .leftJoin(terms, eq(bills.termsId, terms.id))
+      .where(and(
+        eq(bills.accountId, accountId),
+        sql`${bills.balance} > 0`, // Only outstanding bills
+        sql`${bills.discountAmount} > 0` // Only bills with discounts
+      ))
+      .orderBy(bills.discountDueDate);
+
+    return billsData.map(bill => ({
+      id: bill.billId,
+      billNumber: bill.billNumber || `BILL-${bill.billId.slice(-6)}`,
+      vendorName: bill.vendorName,
+      amount: parseFloat(bill.amount.toString()),
+      balance: parseFloat(bill.balance.toString()),
+      discountAmount: parseFloat((bill.discountAmount || 0).toString()),
+      discountDueDate: bill.discountDueDate?.toISOString() || '',
+      discountCaptured: bill.discountCaptured,
+      paymentTerms: bill.termsName || 'Standard',
+      vendorW9Status: bill.vendorW9Status,
+      vendorCoiStatus: bill.vendorCoiStatus,
+      canCaptureDiscount: !bill.discountCaptured && bill.discountDueDate && bill.discountDueDate > new Date(),
+      daysUntilDiscount: bill.discountDueDate ? 
+        Math.ceil((bill.discountDueDate.getTime() - new Date().getTime()) / (1000 * 60 * 60 * 24)) : 0,
+      createdAt: (bill.createdAt || new Date()).toISOString(),
+    }));
   }
 }
 

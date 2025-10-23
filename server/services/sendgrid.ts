@@ -1,5 +1,6 @@
 import { MailService } from '@sendgrid/mail';
 import { storage } from '../storage';
+import { logger } from './logger';
 
 if (!process.env.SENDGRID_API_KEY) {
   throw new Error("SENDGRID_API_KEY environment variable must be set");
@@ -32,10 +33,23 @@ export async function sendEmail(params: EmailParams): Promise<boolean> {
       emailData.html = params.html;
     }
     
-    await mailService.send(emailData);
+    logger.info('Sending email via SendGrid', {
+      to: params.to,
+      from: params.from,
+      subject: params.subject,
+      hasApiKey: !!process.env.SENDGRID_API_KEY
+    });
+    
+    const response = await mailService.send(emailData);
+    logger.info('Email sent successfully', { to: params.to, messageId: response[0]?.headers?.['x-message-id'] });
+    
     return true;
   } catch (error) {
-    console.error('SendGrid email error:', error);
+    logger.error('SendGrid email failed', { 
+      to: params.to, 
+      subject: params.subject,
+      error: error instanceof Error ? error.message : String(error)
+    });
     return false;
   }
 }
@@ -49,7 +63,7 @@ export class EmailService {
       throw new Error('Vendor email not found');
     }
 
-    const account = await storage.getAccountByUserId(vendor.accountId);
+    const account = await storage.getAccount(vendor.accountId);
     if (!account) {
       throw new Error('Account not found');
     }
@@ -80,9 +94,13 @@ export class EmailService {
 
     const textContent = htmlContent.replace(/<[^>]*>/g, '').replace(/\n\s*\n/g, '\n\n');
 
+    // Use custom fromName if set, otherwise use company name
+    const senderName = account.fromName || account.companyName;
+    const fromAddress = `${senderName} <${this.defaultFromEmail}>`;
+
     const success = await sendEmail({
       to: vendor.email,
-      from: this.defaultFromEmail,
+      from: fromAddress,
       subject: `W-9 Form Required - ${account.companyName}`,
       html: htmlContent,
       text: textContent,
@@ -120,7 +138,7 @@ export class EmailService {
       throw new Error('Vendor email not found');
     }
 
-    const account = await storage.getAccountByUserId(vendor.accountId);
+    const account = await storage.getAccount(vendor.accountId);
     if (!account) {
       throw new Error('Account not found');
     }
@@ -151,9 +169,13 @@ export class EmailService {
 
     const textContent = htmlContent.replace(/<[^>]*>/g, '').replace(/\n\s*\n/g, '\n\n');
 
+    // Use custom fromName if set, otherwise use company name  
+    const senderName = account.fromName || account.companyName;
+    const fromAddress = `${senderName} <${this.defaultFromEmail}>`;
+
     const success = await sendEmail({
       to: vendor.email,
-      from: this.defaultFromEmail,
+      from: fromAddress,
       subject: `Certificate of Insurance Required - ${account.companyName}`,
       html: htmlContent,
       text: textContent,
@@ -205,7 +227,7 @@ export class EmailService {
           <li>Get real-time notifications when documents arrive</li>
         </ul>
         <p style="margin: 30px 0;">
-          <a href="${process.env.REPLIT_DOMAINS?.split(',')[0]}/dashboard" style="background-color: #2563eb; color: white; padding: 12px 24px; text-decoration: none; border-radius: 6px; display: inline-block;">
+          <a href="https://${process.env.REPLIT_DOMAINS?.split(',')[0]}/dashboard" style="background-color: #2563eb; color: white; padding: 12px 24px; text-decoration: none; border-radius: 6px; display: inline-block;">
             View Your Dashboard
           </a>
         </p>
@@ -218,7 +240,7 @@ export class EmailService {
 
     return await sendEmail({
       to: user.email,
-      from: this.defaultFromEmail,
+      from: `Pulsio Team <${this.defaultFromEmail}>`,
       subject: 'Welcome to Pulsio - Your Document Collection is Now Automated!',
       html: htmlContent,
       text: textContent,
@@ -236,7 +258,7 @@ export class EmailService {
       throw new Error('Account not found');
     }
 
-    const uploadLink = `${process.env.REPLIT_DOMAINS?.split(',')[0]}/upload/${vendor.id}`;
+    const uploadLink = `https://${process.env.REPLIT_DOMAINS?.split(',')[0]}/upload/${vendor.id}`;
 
     const htmlContent = `
       <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
@@ -255,9 +277,13 @@ export class EmailService {
 
     const textContent = htmlContent.replace(/<[^>]*>/g, '').replace(/\n\s*\n/g, '\n\n');
 
+    // Use custom fromName if set, otherwise use company name
+    const senderName = account.fromName || account.companyName;
+    const fromAddress = `${senderName} <${this.defaultFromEmail}>`;
+
     const success = await sendEmail({
       to: vendor.email,
-      from: this.defaultFromEmail,
+      from: fromAddress,
       subject: `COI Expiring in ${daysUntilExpiry} Days - ${account.companyName}`,
       html: htmlContent,
       text: textContent,

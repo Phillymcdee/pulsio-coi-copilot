@@ -2,6 +2,7 @@ import { useQuery } from "@tanstack/react-query";
 import { useSSE } from "@/hooks/useSSE";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { 
   Mail, 
   FileText, 
@@ -58,7 +59,7 @@ export function Timeline() {
   // Combine timeline events with SSE events
   const allEvents = [
     ...(sseEvents || []),
-    ...(timelineEvents || []).map(event => ({
+    ...((timelineEvents as any[]) || []).map((event: any) => ({
       ...event,
       timestamp: new Date(event.createdAt).getTime(),
       data: {

@@ -1,9 +1,10 @@
 import { useQuery } from "@tanstack/react-query";
 import { Card, CardContent } from "@/components/ui/card";
 import { DollarSign } from "lucide-react";
+import type { DashboardStats } from "@shared/types";
 
 export function MoneyAtRiskCard() {
-  const { data: stats, isLoading } = useQuery({
+  const { data: stats, isLoading } = useQuery<DashboardStats>({
     queryKey: ["/api/dashboard/stats"],
   });
 
@@ -48,26 +49,14 @@ export function MoneyAtRiskCard() {
           </div>
           
           {moneyAtRisk > 0 ? (
-            <div className="space-y-2">
-              <div className="text-xs text-gray-500">
-                Top vendors by discount amount
-              </div>
-              {/* This would show top vendors - for now showing placeholder */}
-              <div className="text-sm text-gray-600">
-                Collect missing documents to capture these discounts
-              </div>
+            <div className="text-sm text-gray-600">
+              Collect missing documents to secure discounts
             </div>
           ) : (
             <div className="text-sm text-green-600">
-              All discounts secured! 🎉
+              All available discounts secured
             </div>
           )}
-        </div>
-        
-        <div className="mt-4 pt-4 border-t border-gray-200">
-          <div className="text-xs text-gray-500 text-center">
-            Capture these discounts by collecting missing docs
-          </div>
         </div>
       </CardContent>
     </Card>

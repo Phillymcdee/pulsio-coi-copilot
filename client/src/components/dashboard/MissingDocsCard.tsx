@@ -1,10 +1,11 @@
 import { useQuery } from "@tanstack/react-query";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { AlertTriangle, ArrowRight } from "lucide-react";
-import { Link } from "wouter";
+import { AlertTriangle, ArrowRight, CheckCircle } from "lucide-react";
+import { Link, useLocation } from "wouter";
 
 export function MissingDocsCard() {
+  const [, navigate] = useLocation();
   const { data: stats, isLoading } = useQuery({
     queryKey: ["/api/dashboard/stats"],
   });
@@ -27,7 +28,7 @@ export function MissingDocsCard() {
     );
   }
 
-  const missingDocs = stats?.missingDocs || [];
+  const missingDocs = (stats as any)?.missingDocs || [];
 
   return (
     <Card>
@@ -44,7 +45,7 @@ export function MissingDocsCard() {
               <p className="text-sm">All documents collected!</p>
             </div>
           ) : (
-            missingDocs.slice(0, 3).map((doc, index) => (
+            missingDocs.slice(0, 3).map((doc: any, index: number) => (
               <div key={index} className="flex items-center justify-between p-3 bg-red-50 rounded-lg border border-red-200">
                 <div className="flex items-center space-x-3">
                   <div className="w-2 h-2 bg-red-500 rounded-full"></div>
@@ -53,11 +54,14 @@ export function MissingDocsCard() {
                     <div className="text-sm text-gray-600">{doc.docType} Missing</div>
                   </div>
                 </div>
-                <Link href={`/vendors/${doc.vendorId}`}>
-                  <Button variant="ghost" size="sm" className="text-primary hover:text-primary-dark">
-                    Remind
-                  </Button>
-                </Link>
+                <Button 
+                  variant="ghost" 
+                  size="sm" 
+                  className="text-primary hover:text-primary-dark"
+                  onClick={() => navigate(`/vendors/${doc.vendorId}`)}
+                >
+                  Remind
+                </Button>
               </div>
             ))
           )}
@@ -66,9 +70,9 @@ export function MissingDocsCard() {
         {missingDocs.length > 3 && (
           <div className="mt-4 pt-4 border-t border-gray-200">
             <Link href="/vendors">
-              <a className="text-primary hover:text-primary-dark text-sm font-medium">
+              <span className="text-primary hover:text-primary-dark text-sm font-medium cursor-pointer">
                 View all vendors <ArrowRight className="w-4 h-4 inline ml-1" />
-              </a>
+              </span>
             </Link>
           </div>
         )}

@@ -1,8 +1,10 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Textarea } from "@/components/ui/textarea";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { Separator } from "@/components/ui/separator";
 import { 
   Building2, 
@@ -15,13 +17,15 @@ import {
   X,
   Loader2,
   CheckCircle,
-  AlertCircle
+  AlertCircle,
+  Edit,
+  Save
 } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
 
 interface VendorModalProps {
   vendor: any;
-  onUpdateVendor: (data: { notes?: string; isExempt?: boolean }) => void;
+  onUpdateVendor: (data: { name?: string; email?: string; phone?: string; notes?: string; isExempt?: boolean }) => void;
   onSendReminder: (data: { type: 'W9' | 'COI'; channel: 'email' | 'sms' }) => void;
   isUpdating: boolean;
   isSendingReminder: boolean;
@@ -40,14 +44,98 @@ export function VendorModal({
 }: VendorModalProps) {
   const [notes, setNotes] = useState(vendor?.notes || '');
   const [lastSavedNotes, setLastSavedNotes] = useState(vendor?.notes || '');
+  const [isEditing, setIsEditing] = useState(false);
+  const [editForm, setEditForm] = useState({
+    name: vendor?.name || '',
+    email: vendor?.email || '',
+    phone: vendor?.phone || '',
+  });
 
   if (!isOpen || !vendor) return null;
+
+  // Update form when vendor changes
+  useEffect(() => {
+    setEditForm({
+      name: vendor.name || '',
+      email: vendor.email || '',
+      phone: vendor.phone || '',
+    });
+    setNotes(vendor.notes || '');
+    setLastSavedNotes(vendor.notes || '');
+    setIsEditing(false);
+  }, [vendor]);
 
   const handleNotesBlur = () => {
     if (notes !== lastSavedNotes) {
       onUpdateVendor({ notes });
       setLastSavedNotes(notes);
     }
+  };
+
+  const handleDownloadDocument = async (docType: 'W9' | 'COI') => {
+    try {
+      console.log(`Download ${docType} button clicked for vendor:`, vendor.id);
+      
+      // Find the document for this vendor
+      const response = await fetch(`/api/vendors/${vendor.id}/documents`);
+      console.log('Documents response:', response.status);
+      
+      if (!response.ok) {
+        throw new Error(`Failed to fetch documents: ${response.status}`);
+      }
+      
+      const documents = await response.json();
+      console.log('Fetched documents:', documents);
+      
+      const document = documents.find((doc: any) => doc.type === docType);
+      console.log(`Found ${docType} document:`, document);
+      
+      if (!document) {
+        console.error(`No ${docType} document found for vendor`);
+        alert(`No ${docType} document found for this vendor`);
+        return;
+      }
+      
+      // Download the document using the pre-built URL or construct it
+      const downloadUrl = document.url || `/api/documents/download/${encodeURIComponent(document.storageKey)}`;
+      console.log('Download URL:', downloadUrl);
+      
+      // Try direct window.open first
+      window.open(downloadUrl, '_blank');
+      
+      // Fallback to programmatic link click
+      const link = document.createElement('a');
+      link.href = downloadUrl;
+      link.download = document.filename;
+      link.target = '_blank';
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+    } catch (error) {
+      console.error(`Error downloading ${docType}:`, error);
+      alert(`Error downloading ${docType}: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    }
+  };
+
+  const handleDownloadCOI = () => handleDownloadDocument('COI');
+  const handleDownloadW9 = () => handleDownloadDocument('W9');
+
+  const handleSaveEdit = () => {
+    onUpdateVendor({
+      name: editForm.name,
+      email: editForm.email.trim() || null,
+      phone: editForm.phone.trim() || null,
+    });
+    setIsEditing(false);
+  };
+
+  const handleCancelEdit = () => {
+    setEditForm({
+      name: vendor.name || '',
+      email: vendor.email || '',
+      phone: vendor.phone || '',
+    });
+    setIsEditing(false);
   };
 
   const getStatusColor = (status: string) => {
@@ -81,32 +169,170 @@ export function VendorModal({
       <div className="relative top-10 mx-auto p-0 border w-full max-w-4xl shadow-lg rounded-lg bg-white m-4">
         {/* Header */}
         <div className="flex items-center justify-between p-6 border-b border-gray-200">
-          <div className="flex items-center space-x-4">
+          <div className="flex items-center space-x-4 flex-1">
             <div className="h-12 w-12 bg-primary/10 rounded-lg flex items-center justify-center">
               <Building2 className="w-6 h-6 text-primary" />
             </div>
-            <div>
-              <h3 className="text-lg font-semibold text-gray-900">{vendor.name}</h3>
-              <div className="flex items-center space-x-4 text-sm text-gray-600">
-                {vendor.email && (
-                  <div className="flex items-center space-x-1">
-                    <Mail className="w-4 h-4" />
-                    <span>{vendor.email}</span>
+            <div className="flex-1">
+              {isEditing ? (
+                <div className="space-y-3">
+                  <div>
+                    <Label htmlFor="vendor-name" className="text-sm font-medium">Company Name</Label>
+                    <Input
+                      id="vendor-name"
+                      value={editForm.name}
+                      onChange={(e) => setEditForm({ ...editForm, name: e.target.value })}
+                      className="mt-1"
+                    />
                   </div>
-                )}
-                {vendor.phone && (
-                  <div className="flex items-center space-x-1">
-                    <Phone className="w-4 h-4" />
-                    <span>{vendor.phone}</span>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                    <div>
+                      <div className="flex items-center justify-between">
+                        <Label htmlFor="vendor-email" className="text-sm font-medium">Email</Label>
+                        {vendor.qboId && vendor.emailOverride && (
+                          <span className="text-xs text-orange-600 bg-orange-50 px-2 py-1 rounded">
+                            Override active
+                          </span>
+                        )}
+                      </div>
+                      <Input
+                        id="vendor-email"
+                        type="email"
+                        value={editForm.email}
+                        onChange={(e) => setEditForm({ ...editForm, email: e.target.value })}
+                        className="mt-1"
+                      />
+                      {vendor.qboId && vendor.qboEmail && vendor.qboEmail !== editForm.email && (
+                        <p className="text-xs text-gray-500 mt-1">
+                          QuickBooks: {vendor.qboEmail}
+                        </p>
+                      )}
+                    </div>
+                    <div>
+                      <div className="flex items-center justify-between">
+                        <Label htmlFor="vendor-phone" className="text-sm font-medium">Phone</Label>
+                        {vendor.qboId && vendor.phoneOverride && (
+                          <span className="text-xs text-orange-600 bg-orange-50 px-2 py-1 rounded">
+                            Override active
+                          </span>
+                        )}
+                      </div>
+                      <Input
+                        id="vendor-phone"
+                        type="tel"
+                        value={editForm.phone}
+                        onChange={(e) => setEditForm({ ...editForm, phone: e.target.value })}
+                        placeholder="(555) 123-4567"
+                        className="mt-1"
+                      />
+                      {vendor.qboId && vendor.qboPhone && vendor.qboPhone !== editForm.phone && (
+                        <p className="text-xs text-gray-500 mt-1">
+                          QuickBooks: {vendor.qboPhone}
+                        </p>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              ) : (
+                <div>
+                  <h3 className="text-lg font-semibold text-gray-900">{vendor.name}</h3>
+                  <div className="flex items-center space-x-4 text-sm text-gray-600">
+                    {vendor.email && (
+                      <div className="flex items-center space-x-1">
+                        <Mail className="w-4 h-4" />
+                        <span>{vendor.email}</span>
+                      </div>
+                    )}
+                    {vendor.phone && (
+                      <div className="flex items-center space-x-1">
+                        <Phone className="w-4 h-4" />
+                        <span>{vendor.phone}</span>
+                      </div>
+                    )}
+                    {!vendor.phone && (
+                      <span className="text-xs text-amber-600 bg-amber-50 px-2 py-1 rounded">
+                        No phone number - SMS unavailable
+                      </span>
+                    )}
+                    {vendor.qboId && (
+                      <span className="text-xs text-blue-600 bg-blue-50 px-2 py-1 rounded flex items-center space-x-1">
+                        <span>Synced from QuickBooks</span>
+                      </span>
+                    )}
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+          
+          <div className="flex items-center space-x-2">
+            {isEditing ? (
+              <>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={handleCancelEdit}
+                  disabled={isUpdating}
+                >
+                  Cancel
+                </Button>
+                <Button
+                  size="sm"
+                  onClick={handleSaveEdit}
+                  disabled={isUpdating || !editForm.name}
+                >
+                  {isUpdating && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
+                  <Save className="w-4 h-4 mr-2" />
+                  Save
+                </Button>
+              </>
+            ) : (
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => setIsEditing(true)}
+              >
+                <Edit className="w-4 h-4 mr-2" />
+                Edit
+              </Button>
+            )}
+            <Button variant="ghost" size="icon" onClick={onClose}>
+              <X className="w-5 h-5" />
+            </Button>
+          </div>
+        </div>
+
+        {/* QB Sync Info Panel */}
+        {vendor.qboId && isEditing && (
+          <div className="mx-6 mt-4 p-4 bg-blue-50 border border-blue-200 rounded-lg">
+            <div className="flex items-start space-x-3">
+              <div className="w-5 h-5 text-blue-600 mt-0.5">
+                <svg viewBox="0 0 20 20" fill="currentColor">
+                  <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clipRule="evenodd" />
+                </svg>
+              </div>
+              <div className="flex-1">
+                <h4 className="text-sm font-medium text-blue-900 mb-1">QuickBooks Sync Info</h4>
+                <p className="text-sm text-blue-700 mb-2">
+                  This vendor syncs from QuickBooks Online. When you edit these fields:
+                </p>
+                <ul className="text-sm text-blue-700 space-y-1 mb-3">
+                  <li>• Your changes will <strong>override</strong> QuickBooks data</li>
+                  <li>• Future QB syncs won't update overridden fields</li>
+                  <li>• You can revert to QB data anytime</li>
+                </ul>
+                {(vendor.nameOverride || vendor.emailOverride || vendor.phoneOverride) && (
+                  <div className="flex items-center space-x-2">
+                    <span className="text-xs text-blue-700">Active overrides:</span>
+                    {vendor.nameOverride && <span className="text-xs bg-orange-100 text-orange-700 px-2 py-1 rounded">Name</span>}
+                    {vendor.emailOverride && <span className="text-xs bg-orange-100 text-orange-700 px-2 py-1 rounded">Email</span>}
+                    {vendor.phoneOverride && <span className="text-xs bg-orange-100 text-orange-700 px-2 py-1 rounded">Phone</span>}
                   </div>
                 )}
               </div>
             </div>
           </div>
-          <Button variant="ghost" size="icon" onClick={onClose}>
-            <X className="w-5 h-5" />
-          </Button>
-        </div>
+        )}
         
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 p-6">
           {/* Left Column - Main Content */}
@@ -141,7 +367,7 @@ export function VendorModal({
                       Send Reminder
                     </Button>
                   ) : (
-                    <Button size="sm" variant="outline">
+                    <Button size="sm" variant="outline" onClick={handleDownloadW9}>
                       <Download className="w-4 h-4 mr-1" />
                       Download PDF
                     </Button>
@@ -163,7 +389,7 @@ export function VendorModal({
                   </div>
                   <p className="text-sm mb-3">
                     {vendor.coiExpiry 
-                      ? `Expires: ${new Date(vendor.coiExpiry).toLocaleDateString()}`
+                      ? `Expires: ${new Date(vendor.coiExpiry).toLocaleDateString('en-US', { timeZone: 'UTC' })}`
                       : 'Insurance coverage verification'
                     }
                   </p>
@@ -182,7 +408,7 @@ export function VendorModal({
                       Send Reminder
                     </Button>
                   ) : (
-                    <Button size="sm" variant="outline">
+                    <Button size="sm" variant="outline" onClick={handleDownloadCOI}>
                       <Download className="w-4 h-4 mr-1" />
                       Download PDF
                     </Button>
@@ -199,35 +425,93 @@ export function VendorModal({
                 </div>
                 <div className="divide-y divide-gray-200">
                   {vendor.bills && vendor.bills.length > 0 ? (
-                    vendor.bills.slice(0, 5).map((bill: any, index: number) => (
-                      <div key={index} className="p-4 hover:bg-gray-50 transition-colors">
-                        <div className="flex items-center justify-between">
-                          <div>
-                            <div className="font-medium text-gray-900">
-                              {bill.billNumber || `Bill #${bill.id.slice(-6)}`}
+                    vendor.bills.slice(0, 5).map((bill: any, index: number) => {
+                      const isOverdue = bill.balance && parseFloat(bill.balance) > 0;
+                      const hasDiscount = bill.discountAmount && parseFloat(bill.discountAmount) > 0 && !bill.discountCaptured;
+                      const discountExpired = hasDiscount && bill.discountDueDate && new Date(bill.discountDueDate) < new Date();
+                      const daysUntilDiscount = hasDiscount && bill.discountDueDate ? 
+                        Math.ceil((new Date(bill.discountDueDate).getTime() - new Date().getTime()) / (1000 * 60 * 60 * 24)) : 0;
+                      
+                      return (
+                        <div key={index} className="p-4 hover:bg-gray-50 transition-colors">
+                          <div className="space-y-2">
+                            {/* Bill Header */}
+                            <div className="flex items-center justify-between">
+                              <div className="font-medium text-gray-900">
+                                {bill.billNumber || `Bill #${bill.id.slice(-6)}`}
+                              </div>
+                              <div className="text-right">
+                                <div className="font-semibold text-gray-900">
+                                  ${parseFloat(bill.amount).toLocaleString()}
+                                </div>
+                                {bill.balance && parseFloat(bill.balance) > 0 && (
+                                  <div className="text-sm text-gray-500">
+                                    Balance: ${parseFloat(bill.balance).toFixed(2)}
+                                  </div>
+                                )}
+                                {bill.balance && parseFloat(bill.balance) === 0 && (
+                                  <div className="text-sm font-medium text-green-600">
+                                    ✓ Paid in Full
+                                  </div>
+                                )}
+                              </div>
                             </div>
-                            <div className="text-sm text-gray-600">
-                              {new Date(bill.createdAt).toLocaleDateString()}
-                            </div>
-                          </div>
-                          <div className="text-right">
-                            <div className="font-medium text-gray-900">
-                              ${parseFloat(bill.amount).toLocaleString()}
-                            </div>
-                            {bill.discountAmount && parseFloat(bill.discountAmount) > 0 && !bill.discountCaptured && (
-                              <div className="text-sm text-amber-600">
-                                ${parseFloat(bill.discountAmount).toFixed(2)} discount available
+
+                            {/* Payment Terms & Discount Info */}
+                            {hasDiscount && !discountExpired && (
+                              <div className="bg-amber-50 border border-amber-200 rounded-md p-3">
+                                <div className="flex items-center justify-between mb-1">
+                                  <span className="text-sm font-medium text-amber-800">
+                                    Early Payment Discount
+                                  </span>
+                                  <span className="text-lg font-bold text-amber-600">
+                                    ${parseFloat(bill.discountAmount).toFixed(2)}
+                                  </span>
+                                </div>
+                                <div className="text-sm text-amber-700">
+                                  {daysUntilDiscount > 1 ? (
+                                    <span>Pay within {daysUntilDiscount} days to save ${parseFloat(bill.discountAmount).toFixed(2)}</span>
+                                  ) : daysUntilDiscount === 1 ? (
+                                    <span className="font-medium">⚡ Last day to save ${parseFloat(bill.discountAmount).toFixed(2)}!</span>
+                                  ) : (
+                                    <span className="font-medium">⚡ Discount expires today!</span>
+                                  )}
+                                </div>
+                                {bill.discountDueDate && (
+                                  <div className="text-xs text-amber-600 mt-1">
+                                    Discount expires: {new Date(bill.discountDueDate).toLocaleDateString()}
+                                  </div>
+                                )}
                               </div>
                             )}
+
+                            {hasDiscount && discountExpired && (
+                              <div className="bg-gray-50 border border-gray-200 rounded-md p-3">
+                                <div className="text-sm text-gray-600">
+                                  ${parseFloat(bill.discountAmount).toFixed(2)} discount expired on {new Date(bill.discountDueDate).toLocaleDateString()}
+                                </div>
+                              </div>
+                            )}
+
                             {bill.discountCaptured && (
-                              <div className="text-sm text-green-600">
-                                ${parseFloat(bill.discountAmount).toFixed(2)} discount captured
+                              <div className="bg-green-50 border border-green-200 rounded-md p-3">
+                                <div className="text-sm font-medium text-green-700">
+                                  ✓ ${parseFloat(bill.discountAmount).toFixed(2)} discount captured
+                                </div>
                               </div>
                             )}
+
+                            {/* Bill Details */}
+                            <div className="text-xs text-gray-500 flex justify-between">
+                              <span>Issued: {new Date(bill.createdAt).toLocaleDateString()}</span>
+                              {bill.paymentTerms && (
+                                <span>Terms: {bill.paymentTerms}</span>
+                              )}
+                            </div>
                           </div>
                         </div>
-                      </div>
-                    ))
+                      );
+                    })
                   ) : (
                     <div className="p-8 text-center text-gray-500">
                       <FileText className="w-8 h-8 mx-auto mb-2 text-gray-400" />
@@ -247,27 +531,53 @@ export function VendorModal({
                 <h4 className="font-medium text-gray-900 mb-3">Quick Actions</h4>
                 <div className="space-y-2">
                   {vendor.w9Status === 'MISSING' && (
-                    <Button
-                      variant="ghost"
-                      className="w-full justify-start text-primary hover:bg-primary/5"
-                      onClick={() => onSendReminder({ type: 'W9', channel: 'email' })}
-                      disabled={isSendingReminder}
-                    >
-                      <Send className="w-4 h-4 mr-2" />
-                      Resend W-9 Reminder
-                    </Button>
+                    <>
+                      <Button
+                        variant="ghost"
+                        className="w-full justify-start text-primary hover:bg-primary/5"
+                        onClick={() => onSendReminder({ type: 'W9', channel: 'email' })}
+                        disabled={isSendingReminder}
+                      >
+                        <Mail className="w-4 h-4 mr-2" />
+                        Resend W-9 Reminder (Email)
+                      </Button>
+                      {vendor.phone && (
+                        <Button
+                          variant="ghost"
+                          className="w-full justify-start text-green-600 hover:bg-green-50"
+                          onClick={() => onSendReminder({ type: 'W9', channel: 'sms' })}
+                          disabled={isSendingReminder}
+                        >
+                          <Phone className="w-4 h-4 mr-2" />
+                          Send W-9 Reminder (SMS)
+                        </Button>
+                      )}
+                    </>
                   )}
                   
                   {(vendor.coiStatus === 'MISSING' || vendor.coiStatus === 'EXPIRED') && (
-                    <Button
-                      variant="ghost"
-                      className="w-full justify-start text-primary hover:bg-primary/5"
-                      onClick={() => onSendReminder({ type: 'COI', channel: 'email' })}
-                      disabled={isSendingReminder}
-                    >
-                      <Send className="w-4 h-4 mr-2" />
-                      Resend COI Reminder
-                    </Button>
+                    <>
+                      <Button
+                        variant="ghost"
+                        className="w-full justify-start text-primary hover:bg-primary/5"
+                        onClick={() => onSendReminder({ type: 'COI', channel: 'email' })}
+                        disabled={isSendingReminder}
+                      >
+                        <Mail className="w-4 h-4 mr-2" />
+                        Resend COI Reminder (Email)
+                      </Button>
+                      {vendor.phone && (
+                        <Button
+                          variant="ghost"
+                          className="w-full justify-start text-green-600 hover:bg-green-50"
+                          onClick={() => onSendReminder({ type: 'COI', channel: 'sms' })}
+                          disabled={isSendingReminder}
+                        >
+                          <Phone className="w-4 h-4 mr-2" />
+                          Send COI Reminder (SMS)
+                        </Button>
+                      )}
+                    </>
                   )}
                   
                   {vendor.phone && (

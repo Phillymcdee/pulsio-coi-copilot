@@ -1,0 +1,69 @@
+Here’s an enriched, detailed persona breakdown of ProAdvisor Paula, grounded in publicly available data and realistic insights to help you deeply understand and empathize with her:
+
+⸻
+
+Persona: ProAdvisor Paula
+
+Name: Paula Harper
+Role: QuickBooks ProAdvisor / Independent Bookkeeper specializing in SMB Clients
+Certifications & Tools:
+	•	QuickBooks Certified ProAdvisor, listed on Intuit’s Find-a‑ProAdvisor directory for visibility.
+￼
+	•	Member of QuickBooks ProAdvisor program with access to resources, training, and marketing tools.
+￼
+
+⸻
+
+Professional Background & Motivations
+
+Background
+
+Paula typically serves multiple small business clients, often across construction, retail, and services sectors. Her ProAdvisor certification indicates she’s equipped for cross-business support, beyond single-company roles.
+￼
+
+Expertise & Services
+	•	Optimizes QuickBooks workflows, tailors reports, and helps businesses automate bookkeeping, payroll, and tax filing.
+	•	Advises clients on cash flow management, financial strategy, and QuickBooks integrations.
+	•	Delivers high-touch, proactive client support using branded marketing templates and advisory content from Intuit’s toolkit.
+￼
+
+Pain Points
+	•	Recurring W-9 Chaos: Every January, she scrambles to collect missing vendor tax forms across clients, delaying 1099s and triggering client anxiety.
+	•	Time Constraints: Manual follow-ups with vendors eat into billable hours, especially when clients change subcontractors mid-project.
+	•	Compliance Blind Spots: QBO lacks visibility into vendor compliance impact (e.g., missed early-payment discount windows or expired insurance coverage).
+
+⸻
+
+Behaviors & Channel Habits
+	•	Marketing Presence: Maintains a professional profile photo and optimized Find-a-ProAdvisor listing for credibility.
+￼ ￼
+	•	Seeks Resources: Leverages ProAdvisor Academy content, marketing templates, and Intuit events to grow her practice.
+￼
+	•	Service Pricing: Bids per hour or monthly retainers. Charges clients for compliance support layered on top of bookkeeping duties.
+￼
+
+⸻
+
+Goals & Aspirations
+	•	Deliver Value over Entry-Level Services: She wants to elevate her advisory role beyond data entry—being seen as a trusted partner driving financial outcomes.
+	•	Automate Admin Workflows: Save hours each year by reducing manual compliance tasks.
+	•	Strengthen Client Loyalty: Deliver proactive compliance tracking (e.g., W-9/COI + ROI dashboards) to become indispensable.
+	•	Enlarge Practice Efficiently: Use technology and referral leverage to grow her client base without linear overhead.
+
+⸻
+
+Example Snapshot
+
+Paula Harper — Contractor Bookkeeping Specialist
+	•	Location: Midwest U.S.
+	•	Clients: 12 SMBs (5 in residential construction)
+	•	Challenges: W-9/COI chase overhead; project delays due to missing vendor documentation; annual compliance stress.
+	•	Solution Aspirations: One-click vendor compliance sync, risk dashboard indicating lost discounts, reduced scramble during tax season.
+
+⸻
+
+Why This Persona Matters for Pulsio
+
+Paula’s pain points—vendor compliance chaos, inefficient admin, lack of insight into money slipping away—are exactly where Pulsio’s value lies. Framing your GTM to her motivations and workflow transforms Pulsio from another tool to a strategic growth enabler for her practice.
+
+Want this as a formatted markdown document for use in your GTM planning or internal wiki? I’d be happy to prepare it!

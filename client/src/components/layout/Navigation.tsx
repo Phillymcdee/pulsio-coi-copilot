@@ -6,7 +6,8 @@ import {
   DropdownMenu, 
   DropdownMenuContent, 
   DropdownMenuItem, 
-  DropdownMenuTrigger 
+  DropdownMenuTrigger,
+  DropdownMenuSeparator 
 } from "@/components/ui/dropdown-menu";
 import { Link, useLocation } from "wouter";
 import { 
@@ -15,9 +16,22 @@ import {
   Settings, 
   Bell, 
   ChevronDown,
-  Activity
+  Activity,
+  AlertTriangle,
+  Clock,
+  FileText,
+  CheckCircle
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
+
+interface DashboardStats {
+  missingDocs?: Array<{ vendorName: string; docType: string; vendorId: string }>;
+  expiringCOIs?: Array<{ vendorName: string; vendorId: string; daysUntilExpiry: number }>;
+  remindersSent: number;
+  docsReceived: number;
+  totalVendors: number;
+  moneyAtRisk: number;
+}
 
 export function Navigation() {
   const { user } = useAuth();
@@ -25,6 +39,10 @@ export function Navigation() {
 
   const { data: account } = useQuery({
     queryKey: ["/api/account"],
+  });
+
+  const { data: dashboardStats } = useQuery<DashboardStats>({
+    queryKey: ["/api/dashboard/stats"],
   });
 
   const isActive = (path: string) => {
@@ -46,6 +64,11 @@ export function Navigation() {
       icon: Users,
     },
     {
+      href: "/bills",
+      label: "Bills",
+      icon: FileText,
+    },
+    {
       href: "/settings",
       label: "Settings",
       icon: Settings,
@@ -58,12 +81,12 @@ export function Navigation() {
         <div className="flex justify-between h-16">
           <div className="flex items-center">
             <Link href="/dashboard">
-              <a className="flex-shrink-0 flex items-center">
+              <div className="flex-shrink-0 flex items-center cursor-pointer">
                 <div className="w-8 h-8 bg-primary rounded-lg flex items-center justify-center">
                   <Activity className="w-5 h-5 text-white" />
                 </div>
                 <span className="ml-2 text-xl font-bold text-gray-900">Pulsio</span>
-              </a>
+              </div>
             </Link>
             
             <div className="hidden md:ml-6 md:flex md:space-x-8">
@@ -71,14 +94,14 @@ export function Navigation() {
                 const Icon = item.icon;
                 return (
                   <Link key={item.href} href={item.href}>
-                    <a className={`${
+                    <span className={`${
                       isActive(item.href)
                         ? "border-primary text-primary"
                         : "border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300"
-                    } inline-flex items-center px-1 pt-1 border-b-2 text-sm font-medium transition-colors`}>
+                    } inline-flex items-center px-1 pt-1 border-b-2 text-sm font-medium transition-colors cursor-pointer`}>
                       <Icon className="w-4 h-4 mr-2" />
                       {item.label}
-                    </a>
+                    </span>
                   </Link>
                 );
               })}
@@ -87,52 +110,100 @@ export function Navigation() {
 
           <div className="flex items-center space-x-4">
             {/* Notifications */}
-            <Button variant="ghost" size="icon" className="relative">
-              <Bell className="w-5 h-5 text-gray-500" />
-              <Badge 
-                variant="destructive" 
-                className="absolute -top-1 -right-1 h-5 w-5 flex items-center justify-center p-0 text-xs"
-              >
-                3
-              </Badge>
-            </Button>
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="ghost" size="icon" className="relative">
+                  <Bell className="w-5 h-5 text-gray-500" />
+                  {dashboardStats && ((dashboardStats.missingDocs?.length || 0) > 0 || (dashboardStats.expiringCOIs?.length || 0) > 0) && (
+                    <Badge 
+                      variant="destructive" 
+                      className="absolute -top-1 -right-1 h-5 w-5 flex items-center justify-center p-0 text-xs"
+                    >
+                      {(dashboardStats.missingDocs?.length || 0) + (dashboardStats.expiringCOIs?.length || 0)}
+                    </Badge>
+                  )}
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="w-80">
+                <div className="px-4 py-2 border-b">
+                  <h3 className="font-semibold text-sm">Notifications</h3>
+                </div>
+                {dashboardStats?.missingDocs?.map((doc: any, index: number) => (
+                  <DropdownMenuItem key={index} asChild>
+                    <Link href={`/vendors/${doc.vendorId}`}>
+                      <div className="flex items-center space-x-3 w-full">
+                        <AlertTriangle className="w-4 h-4 text-orange-500 flex-shrink-0" />
+                        <div className="flex-1 min-w-0">
+                          <p className="text-sm font-medium truncate">{doc.vendorName}</p>
+                          <p className="text-xs text-gray-500">Missing {doc.docType}</p>
+                        </div>
+                      </div>
+                    </Link>
+                  </DropdownMenuItem>
+                ))}
+                {dashboardStats?.expiringCOIs?.map((coi: any, index: number) => (
+                  <DropdownMenuItem key={index} asChild>
+                    <Link href={`/vendors/${coi.vendorId}`}>
+                      <div className="flex items-center space-x-3 w-full">
+                        <Clock className="w-4 h-4 text-yellow-500 flex-shrink-0" />
+                        <div className="flex-1 min-w-0">
+                          <p className="text-sm font-medium truncate">{coi.vendorName}</p>
+                          <p className="text-xs text-gray-500">COI expires in {coi.daysUntilExpiry} days</p>
+                        </div>
+                      </div>
+                    </Link>
+                  </DropdownMenuItem>
+                ))}
+                {(!dashboardStats?.missingDocs?.length && !dashboardStats?.expiringCOIs?.length) && (
+                  <div className="px-4 py-8 text-center text-gray-500">
+                    <CheckCircle className="w-8 h-8 mx-auto mb-2 text-green-500" />
+                    <p className="text-sm">All caught up!</p>
+                    <p className="text-xs">No pending notifications</p>
+                  </div>
+                )}
+              </DropdownMenuContent>
+            </DropdownMenu>
 
             {/* User Menu */}
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <Button variant="ghost" className="flex items-center space-x-2 text-sm">
                   <Avatar className="h-8 w-8">
-                    <AvatarImage src={user?.profileImageUrl} alt={user?.firstName || "User"} />
+                    <AvatarImage src={(user as any)?.profileImageUrl} alt={(user as any)?.firstName || "User"} />
                     <AvatarFallback>
-                      {user?.firstName?.[0]}{user?.lastName?.[0]}
+                      {(user as any)?.firstName?.[0]}{(user as any)?.lastName?.[0]}
                     </AvatarFallback>
                   </Avatar>
                   <span className="hidden md:block text-gray-700 font-medium">
-                    {user?.firstName} {user?.lastName}
+                    {(user as any)?.firstName} {(user as any)?.lastName}
                   </span>
                   <ChevronDown className="w-4 h-4 text-gray-400" />
                 </Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end" className="w-56">
                 <div className="px-3 py-2 border-b">
-                  <p className="text-sm font-medium">{user?.firstName} {user?.lastName}</p>
-                  <p className="text-xs text-gray-500">{user?.email}</p>
-                  {account && (
-                    <p className="text-xs text-gray-500">{account.companyName}</p>
+                  <p className="text-sm font-medium">{(user as any)?.firstName} {(user as any)?.lastName}</p>
+                  <p className="text-xs text-gray-500">{(user as any)?.email}</p>
+                  {account && (account as any)?.companyName && (
+                    <p className="text-xs text-gray-500">{(account as any).companyName}</p>
                   )}
                 </div>
-                <Link href="/settings">
-                  <DropdownMenuItem>
-                    <Settings className="w-4 h-4 mr-2" />
-                    Account Settings
-                  </DropdownMenuItem>
-                </Link>
-                <Link href="/subscribe">
-                  <DropdownMenuItem>
-                    <BarChart3 className="w-4 h-4 mr-2" />
-                    Billing & Plans
-                  </DropdownMenuItem>
-                </Link>
+                <DropdownMenuItem asChild>
+                  <Link href="/settings">
+                    <span className="flex items-center w-full">
+                      <Settings className="w-4 h-4 mr-2" />
+                      Account Settings
+                    </span>
+                  </Link>
+                </DropdownMenuItem>
+                <DropdownMenuItem asChild>
+                  <Link href="/subscribe">
+                    <span className="flex items-center w-full">
+                      <BarChart3 className="w-4 h-4 mr-2" />
+                      Billing & Plans
+                    </span>
+                  </Link>
+                </DropdownMenuItem>
                 <DropdownMenuItem onClick={() => window.location.href = "/api/logout"}>
                   Sign Out
                 </DropdownMenuItem>

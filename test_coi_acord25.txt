@@ -1,0 +1,66 @@
+ACORD CERTIFICATE OF LIABILITY INSURANCE                     DATE (MM/DD/YYYY): 01/31/2025
+
+PRODUCER                                    INSURER(S) AFFORDING COVERAGE                NAIC #
+ABC Insurance Agency                        A: State Farm Insurance Co.                   25178
+Contact: John Smith                         B: Liberty Mutual Insurance Co.              13056
+Phone: (555) 123-4567                      C: Travelers Insurance Co.                   25674
+Email: john@abcinsurance.com               D:
+                                           E:
+                                           F:
+
+INSURED
+Acme Electrical Contractors LLC
+123 Industrial Drive
+City, State 12345
+
+COVERAGES                    CERTIFICATE NUMBER: COI2025-0131-001
+
+THIS IS TO CERTIFY THAT THE POLICIES OF INSURANCE LISTED BELOW HAVE BEEN ISSUED TO THE INSURED NAMED ABOVE FOR THE POLICY PERIOD INDICATED.
+
+TYPE OF INSURANCE           SUBR   ADDL    POLICY EFF    POLICY EXP     LIMITS
+                           WVD    INSRD   (MM/DD/YYYY)  (MM/DD/YYYY)
+
+GENERAL LIABILITY           ☐      ☑      01/01/2025    01/01/2026     EACH OCCURRENCE           $1,000,000
+☑ Commercial General Liability                                        DAMAGE TO RENTED
+☐ Claims-Made ☑ Occur                                                PREMISES (Ea occurrence) $100,000
+                                                                      MED EXP (Any one person)  $5,000
+                                                                      PERSONAL & ADV INJURY     $1,000,000
+                                                                      GENERAL AGGREGATE         $2,000,000
+                                                                      PRODUCTS-COMP/OP AGG      $2,000,000
+
+AUTOMOBILE LIABILITY       ☐      ☑      01/01/2025    01/01/2026     COMBINED SINGLE LIMIT     $1,000,000
+☑ Any Auto                                                           (Ea accident)
+☐ Owned Autos Only                                                   BODILY INJURY (Per person) $
+☐ Owned Autos Other                                                  BODILY INJURY (Per accident) $
+  Than Autos                                                         PROPERTY DAMAGE           $
+☐ Hired Autos              ☐ Scheduled
+☐ Non-Owned Autos            Autos
+
+UMBRELLA LIAB             ☐      ☑      01/01/2025    01/01/2026     EACH OCCURRENCE           $5,000,000
+EXCESS LIAB                                                          AGGREGATE                 $5,000,000
+
+DED    RETENTION $
+WORKERS COMPENSATION      WVD    ☑      01/01/2025    01/01/2026     X STATUTORY LIMITS        EACH ACCIDENT        $1,000,000
+AND EMPLOYERS' LIABILITY                                             DISEASE - POLICY LIMIT   $1,000,000
+                                                                     DISEASE - EA EMPLOYEE     $1,000,000
+
+OTHER
+
+DESCRIPTION OF OPERATIONS / LOCATIONS / VEHICLES (ACORD 101, Additional Remarks Schedule, may be attached if more space is required)
+
+Electrical contracting services including installation, maintenance, and repair of electrical systems.
+
+CERTIFICATE HOLDER                                    CANCELLATION
+
+Your Construction Company                             SHOULD ANY OF THE ABOVE DESCRIBED POLICIES BE CANCELLED BEFORE
+789 Main Street                                      THE EXPIRATION DATE THEREOF, NOTICE WILL BE ENDEAVORED TO BE GIVEN
+Suite 100                                           IN ACCORDANCE WITH THE APPLICABLE REQUIREMENTS.
+Your City, ST 54321
+
+AUTHORIZED REPRESENTATIVE
+
+[Signature]
+Jane Doe, Account Manager
+Date: 01/31/2025
+
+ACORD 25 (2016/03)

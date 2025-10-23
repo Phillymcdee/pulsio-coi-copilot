@@ -4,28 +4,29 @@ import { quickbooksService } from './quickbooks';
 import { emailService } from './sendgrid';
 import { smsService } from './twilio';
 import { eventBus } from './sse';
+import { logger } from './logger';
 
 export class CronService {
   private jobs = new Map<string, cron.ScheduledTask>();
 
   start(): void {
-    console.log('Starting Pulsio cron services...');
+    logger.info('Starting Pulsio cron services...');
 
     // QuickBooks sync - every 20 minutes
     const syncJob = cron.schedule('*/20 * * * *', async () => {
-      console.log('Running QuickBooks sync...');
+      logger.cron('quickbooks-sync', 'started');
       await this.syncAllAccounts();
     });
 
     // Daily reminder job - runs at 9 AM every day
     const reminderJob = cron.schedule('0 9 * * *', async () => {
-      console.log('Running daily reminder job...');
+      logger.cron('daily-reminders', 'started');
       await this.sendScheduledReminders();
     });
 
     // COI expiry check - daily at 8 AM
     const expiryJob = cron.schedule('0 8 * * *', async () => {
-      console.log('Checking for expiring COIs...');
+      logger.cron('coi-expiry-check', 'started');
       await this.checkExpiringCOIs();
     });
 
@@ -35,14 +36,14 @@ export class CronService {
 
     // Jobs are started by default, no need to call start()
 
-    console.log('Cron services started successfully');
+    logger.info('Cron services started successfully');
   }
 
   stop(): void {
-    console.log('Stopping cron services...');
+    logger.info('Stopping cron services...');
     this.jobs.forEach((job, name) => {
       job.destroy();
-      console.log(`Stopped ${name} job`);
+      logger.info(`Stopped ${name} cron job`);
     });
     this.jobs.clear();
   }
@@ -55,18 +56,33 @@ export class CronService {
       for (const account of accounts) {
         if (account.qboAccessToken && account.qboCompanyId) {
           try {
-            await quickbooksService.syncVendors(account.userId);
-            await quickbooksService.syncBills(account.userId);
-            console.log(`Synced account ${account.companyName}`);
+            const vendorsBefore = await storage.getVendorsByAccountId(account.id);
+            await quickbooksService.syncTerms(account.id); // Sync payment terms first
+            await quickbooksService.syncVendors(account.id); // Use account.id, not userId
+            await quickbooksService.syncBills(account.id);
+            const vendorsAfter = await storage.getVendorsByAccountId(account.id);
+            
+            // Emit SSE event for sync completion
+            eventBus.emit('qbo.sync', {
+              accountId: account.id,
+              vendorCount: vendorsAfter.length,
+            });
+            
+            logger.qbo('sync-completed', account.id, { companyName: account.companyName });
           } catch (error) {
-            console.error(`Error syncing account ${account.companyName}:`, error);
+            logger.error(`Error syncing account ${account.companyName}`, { 
+              accountId: account.id,
+              error: error instanceof Error ? error.message : String(error)
+            });
           }
         }
       }
       
-      console.log('QuickBooks sync completed');
+      logger.cron('quickbooks-sync', 'completed');
     } catch (error) {
-      console.error('Error in QuickBooks sync:', error);
+      logger.cron('quickbooks-sync', 'failed', { 
+        error: error instanceof Error ? error.message : String(error) 
+      });
     }
   }
 
@@ -150,16 +166,30 @@ export class CronService {
         // Skip if vendor is exempt
         if (vendor.isExempt) continue;
 
-        const uploadLink = `${process.env.REPLIT_DOMAINS?.split(',')[0]}/upload/${vendor.id}`;
+        const uploadLink = `https://${process.env.REPLIT_DOMAINS?.split(',')[0]}/upload/${vendor.id}`;
         
         // Send W-9 reminder if missing
         if (vendor.w9Status === 'MISSING' && vendor.email) {
           try {
             await emailService.sendW9Reminder(vendor.id, uploadLink);
             
+            // Emit SSE event for reminder sent
+            eventBus.emit('reminder.sent', {
+              accountId,
+              vendorName: vendor.name,
+              docType: 'W9',
+              channel: 'email',
+            });
+            
             // Also send SMS if phone available
             if (vendor.phone) {
               await smsService.sendW9ReminderSMS(vendor.id, uploadLink);
+              eventBus.emit('reminder.sent', {
+                accountId,
+                vendorName: vendor.name,
+                docType: 'W9',
+                channel: 'sms',
+              });
             }
           } catch (error) {
             console.error(`Error sending W-9 reminder to ${vendor.name}:`, error);
@@ -171,9 +201,23 @@ export class CronService {
           try {
             await emailService.sendCOIReminder(vendor.id, uploadLink);
             
+            // Emit SSE event for reminder sent
+            eventBus.emit('reminder.sent', {
+              accountId,
+              vendorName: vendor.name,
+              docType: 'COI',
+              channel: 'email',
+            });
+            
             // Also send SMS if phone available
             if (vendor.phone) {
               await smsService.sendCOIReminderSMS(vendor.id, uploadLink);
+              eventBus.emit('reminder.sent', {
+                accountId,
+                vendorName: vendor.name,
+                docType: 'COI',
+                channel: 'sms',
+              });
             }
           } catch (error) {
             console.error(`Error sending COI reminder to ${vendor.name}:`, error);

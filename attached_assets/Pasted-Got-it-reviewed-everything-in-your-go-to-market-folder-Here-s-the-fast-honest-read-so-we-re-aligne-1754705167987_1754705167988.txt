@@ -1,0 +1,49 @@
+Got it—reviewed everything in your go-to-market folder. Here’s the fast, honest read so we’re aligned on context.
+
+What you’re building (in one line)
+
+Pulsio automates vendor document collection for SMB contractors using QuickBooks Online—W‑9s, COIs, reminders—then ties it to cash impact (capturing early‑payment discounts / avoiding penalties) to justify ROI.
+
+ICP & buying context (from your assets)
+	•	Who: Small–mid general contractors (HVAC, plumbing, electrical, roofing, landscaping), ~10–100 vendors, QBO Plus/Advanced, recurring vendor payments.
+	•	Buyer/users: Owner, office manager, AP clerk/bookkeeper, sometimes the ProAdvisor.
+	•	Core pains: Spreadsheet chaos, email chasing, missed discounts, IRS/1099 exposure, COI expiry blind spots.
+	•	Primary promise: “Turn compliance from an admin sinkhole into cash saved and risk removed.”
+
+What’s strong (nice work)
+	•	Clear ICP & workflow focus on QBO.
+	•	ROI-first narrative (e.g., “$1,318/month at risk”) that tees up demo urgency.
+	•	Sales demo structure with live metrics (“vendors, compliance %, money at risk”).
+	•	Useful lead magnets (compliance checklist, case‑study template) that match the pain.
+	•	Execution tracker with weekly cadence and concrete outreach/content actions.
+
+Gaps / risks to tighten
+	•	Compliance accuracy: Penalty figures and COI/W‑9 guidance need citations/guardrails + a “not tax/legal advice” disclaimer across content.
+	•	Security & trust: You’re touching TIN/PII—need a Security & Compliance page (data handling, encryption, retention, least‑privilege, DPA, SOC2 roadmap).
+	•	Competitive positioning: Add a one‑pager vs MyCOI / TrustLayer / Certificial / Tax1099/Track1099 / QBO add‑ons (where you win: QBO‑native simplicity + compliance‑to‑cash outcomes).
+	•	Objection handling in the demo script: “We already use email/Sheets,” “Our ProAdvisor handles it,” “We’re on ServiceTitan/Buildertrend,” “We only collect W‑9 once,” “What about QB Desktop?”
+	•	Pricing clarity: Not present. Recommend tiered by vendor count + “Starter (≤25 vendors), Growth (≤75), Pro (≤150)” with overage. Add 14‑day trial and ‘ROI or don’t pay’ guarantee for early logos.
+	•	Channel angle: ProAdvisor/insurance broker partnerships are mentioned—needs offer, rev‑share %, and collateral (one‑pager + co‑demo deck).
+	•	Evidence: Case study template is good—now get one real pilot to populate it (even if discounted) and screenshot hard metrics.
+	•	Surface area: Consider adjacent buyers with identical pains (property management, HOAs, facilities maintenance) for later waves.
+
+Quick wins (next 7–10 days)
+	1.	Publish: Security & Compliance page + Pricing page (tiers, trial, guarantee, FAQs).
+	2.	Outbound: Ship a 3‑touch email + 2 LinkedIn DMs sequence for AP/Office Managers (personalized with “money at risk” calc).
+	3.	Demo hardening: Two demo datasets—“messy baseline” and “after Pulsio”—and add 6 crisp objections w/ answers.
+	4.	Partner kit: 1‑pager for QB ProAdvisors and insurance brokers (they care about COI compliance) with a clean rev‑share.
+	5.	Proof point: Run a 30‑day “100% compliant” pilot with 1–2 GCs; lock a testimonial + metric screenshots for the case study.
+
+File‑level nits I’d fix
+	•	Blog & checklist: Add a short legal disclaimer, cite IRS penalty ranges, note ACORD 25 is common but not “standard,” and clarify that COI requirements vary by contract/industry.
+	•	Demo script: Insert objection handling, a 30‑second security spiel, and explicit “next step” (trial start + import vendors now).
+	•	Prospect list template: Add sources (LinkedIn Sales Navigator, local GC associations, Blue Book, ConstructConnect, QB Find‑a‑ProAdvisor) and a “data enrichment” mini‑checklist (tech, vendor count, billing cadence).
+	•	Execution plan/tracker: Add KPIs you’ll actually monitor weekly: #qualified convos, demos booked, trials started, trial→paid conversion, CAC, payback.
+
+If you want, I can take first drafts of:
+	•	Pricing page (tiers + FAQs),
+	•	Security page (straightforward, credible),
+	•	Outbound sequence (email + LinkedIn), and
+	•	Competitive one‑pager.
+
+Tell me which two you want done first, and I’ll spin them up.

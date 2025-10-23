@@ -20,7 +20,8 @@ import {
   ChevronRight,
   ChevronLeft,
   Loader2,
-  Activity
+  Activity,
+  AlertTriangle
 } from "lucide-react";
 
 interface WizardProps {
@@ -249,13 +250,29 @@ export function Wizard({
               <p className="text-gray-600">Customize your reminder messages (optional - we have great defaults).</p>
             </div>
             
-            <div className="space-y-4">
+            <div className="space-y-6">
               <div>
                 <Label htmlFor="emailTemplate">Email Template</Label>
+                <p className="text-sm text-gray-600 mb-2">
+                  Customize your email template or leave blank to use our default:
+                </p>
+                <div className="mb-3 p-3 bg-gray-50 rounded-lg border text-sm">
+                  <p className="font-medium text-gray-700 mb-2">Default Email Template:</p>
+                  <div className="text-gray-600 space-y-1">
+                    <p><strong>Subject:</strong> W-9 Form Required - {'{{company_name}}'}</p>
+                    <div className="bg-white p-2 rounded border text-xs">
+                      <p><strong>Hello {'{{vendor_name}}'},</strong></p>
+                      <p>We need your completed W-9 form for our records. This is required for tax reporting purposes.</p>
+                      <p><em>[Upload W-9 Form Button]</em></p>
+                      <p>If you have any questions, please don't hesitate to contact us.</p>
+                      <p><strong>Best regards,<br/>{'{{company_name}}'}</strong></p>
+                    </div>
+                  </div>
+                </div>
                 <Textarea
                   id="emailTemplate"
                   {...register("emailTemplate")}
-                  placeholder="Leave blank to use our professional default template..."
+                  placeholder="Leave blank to use the default template above..."
                   rows={4}
                   className="mt-1"
                 />
@@ -266,10 +283,20 @@ export function Wizard({
               
               <div>
                 <Label htmlFor="smsTemplate">SMS Template</Label>
+                <p className="text-sm text-gray-600 mb-2">
+                  Customize your SMS template or leave blank to use our default:
+                </p>
+                <div className="mb-3 p-3 bg-gray-50 rounded-lg border text-sm">
+                  <p className="font-medium text-gray-700 mb-2">Default SMS Template:</p>
+                  <div className="bg-white p-2 rounded border text-xs font-mono">
+                    Hi {'{{vendor_name}}'}, we need your W-9 form for tax reporting. Please upload it here: {'{{upload_link}}'} - {'{{company_name}}'}
+                  </div>
+                  <p className="text-xs text-gray-500 mt-1">156 characters (within 160 limit)</p>
+                </div>
                 <Textarea
                   id="smsTemplate"
                   {...register("smsTemplate")}
-                  placeholder="Leave blank to use our concise default template..."
+                  placeholder="Leave blank to use the default template above..."
                   rows={2}
                   className="mt-1"
                 />
@@ -279,14 +306,23 @@ export function Wizard({
               </div>
             </div>
             
-            <div className="flex items-center space-x-2 p-4 bg-amber-50 rounded-lg">
-              <Checkbox 
-                id="sendTest" 
-                {...register("sendTestReminder")}
-              />
-              <Label htmlFor="sendTest" className="text-sm">
-                Send test reminders to my vendors now (recommended)
-              </Label>
+            <div className="space-y-3 p-4 bg-blue-50 rounded-lg border border-blue-200">
+              <div className="flex items-start space-x-2">
+                <AlertTriangle className="w-5 h-5 text-blue-600 mt-0.5 flex-shrink-0" />
+                <div>
+                  <p className="text-sm font-medium text-blue-900">Ready to Start Collecting Documents?</p>
+                  <p className="text-sm text-blue-700">This will send real reminder emails to vendors who are missing W-9s or Certificates of Insurance.</p>
+                </div>
+              </div>
+              <div className="flex items-center space-x-2">
+                <Checkbox 
+                  id="sendFirst" 
+                  {...register("sendTestReminder")}
+                />
+                <Label htmlFor="sendFirst" className="text-sm">
+                  Yes, send initial reminders to vendors missing documents
+                </Label>
+              </div>
             </div>
           </div>
         );

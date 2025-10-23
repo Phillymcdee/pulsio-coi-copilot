@@ -1,10 +1,40 @@
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { CheckCircle, DollarSign, Clock, Shield, ArrowRight } from "lucide-react";
+import { Footer } from "@/components/layout/Footer";
 
 export default function Landing() {
   return (
     <div className="min-h-screen bg-gray-50">
+      {/* Header Navigation */}
+      <div className="bg-white border-b border-gray-200">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="flex justify-between items-center py-4">
+            <div className="flex items-center">
+              <div className="w-8 h-8 bg-primary rounded-lg flex items-center justify-center mr-3">
+                <CheckCircle className="w-5 h-5 text-white" />
+              </div>
+              <span className="text-xl font-bold text-gray-900">Pulsio</span>
+            </div>
+            <div className="flex items-center gap-4">
+              <Button 
+                variant="ghost" 
+                onClick={() => window.location.href = '/api/login'}
+                data-testid="button-login"
+              >
+                Log In
+              </Button>
+              <Button 
+                onClick={() => window.location.href = '/api/login'}
+                data-testid="button-signup"
+              >
+                Sign Up
+              </Button>
+            </div>
+          </div>
+        </div>
+      </div>
+
       {/* Hero Section */}
       <div className="bg-white">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-24">
@@ -29,8 +59,8 @@ export default function Landing() {
                 Start Free Trial
                 <ArrowRight className="ml-2 w-5 h-5" />
               </Button>
-              <Button variant="outline" size="lg" className="text-lg px-8">
-                Watch Demo
+              <Button variant="outline" size="lg" className="text-lg px-8" onClick={() => window.location.href = '/subscribe'}>
+                View Pricing
               </Button>
             </div>
             <p className="text-sm text-gray-500 mt-4">
@@ -215,6 +245,8 @@ export default function Landing() {
           </p>
         </div>
       </div>
+      
+      <Footer />
     </div>
   );
 }

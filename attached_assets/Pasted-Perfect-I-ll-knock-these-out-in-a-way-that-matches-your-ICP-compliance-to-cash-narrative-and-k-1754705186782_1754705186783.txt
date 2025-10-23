@@ -1,0 +1,145 @@
+Perfect — I’ll knock these out in a way that matches your ICP, “compliance-to-cash” narrative, and keeps it sharp but credible.
+Here’s Version 1 for all four deliverables.
+
+⸻
+
+1️⃣ Pricing Page (Tiers + FAQs)
+
+Header:
+
+Simple, Vendor-Based Pricing
+No hidden fees. Cancel anytime. ROI-backed guarantee.
+
+Plan	Vendor Limit	Monthly	Annual (Save 15%)	Best For
+Starter	Up to 25 vendors	$59	$49/mo billed annually	Small contractors or new builds
+Growth	Up to 75 vendors	$139	$119/mo billed annually	Established GCs with recurring subs
+Pro	Up to 150 vendors	$259	$219/mo billed annually	Multi-crew or multi-site operations
+Enterprise	150+ vendors	Custom	Custom	Regional or national coverage
+
+✅ All plans include:
+	•	Unlimited W-9 & COI requests
+	•	Automated reminders & expiry tracking
+	•	QBO sync (Plus & Advanced)
+	•	ROI dashboard (money at risk vs. saved)
+	•	Email & in-app support
+	•	Pilot guarantee: “Get compliant in 30 days or don’t pay.”
+
+⸻
+
+FAQs:
+
+Q: What happens if I go over my vendor limit?
+We’ll let you know when you’re approaching your limit. Add vendors for $2.50/month each, or upgrade anytime.
+
+Q: Do you lock me into a contract?
+No. You can cancel anytime. Annual plans are refundable on a prorated basis.
+
+Q: Can I import existing compliance data?
+Yes. We’ll bulk import vendor info, W-9s, and COIs from QBO or a spreadsheet.
+
+Q: Is my data secure?
+Absolutely. See our Security & Compliance page for details.
+
+⸻
+
+2️⃣ Security & Compliance Page
+
+Header:
+
+Your Vendor Data. Fully Protected.
+
+1. Data Security
+	•	Encryption: All data is encrypted in transit (TLS 1.2+) and at rest (AES-256).
+	•	Hosting: Secure cloud infrastructure with physical and network safeguards.
+	•	Access Controls: Role-based permissions and least-privilege access.
+
+2. Compliance
+	•	PII Protection: We never share or sell sensitive vendor data (TIN, address, COI).
+	•	Data Retention: Documents stored only as long as your account is active or as required by law.
+	•	IRS & Insurance Alignment: W-9 handling in line with IRS 1099 requirements. COI tracking aligned to ACORD 25 format (where applicable).
+
+3. Backups & Recovery
+	•	Daily encrypted backups stored in geographically redundant locations.
+	•	Disaster recovery plan tested quarterly.
+
+4. Third-Party Integrations
+	•	All integrations vetted for security and privacy.
+	•	API tokens stored encrypted.
+
+Disclaimer: Pulsio is not a tax, legal, or insurance advisor. Always confirm requirements with your CPA, attorney, or insurance broker.
+
+⸻
+
+3️⃣ Outbound Sequence (Email + LinkedIn)
+
+Target: Office Manager / AP Clerk in SMB General Contractor using QBO Plus/Advanced
+
+Email 1 – Pain + ROI Hook
+Subject: “{{FirstName}}, you’re leaving money on the table”
+Body:
+Hi {{FirstName}},
+
+If even 2 vendors miss a W-9 or let their COI expire, it’s not just a compliance headache—you could be losing $1,300+/month in missed early-payment discounts and penalty risk.
+
+Pulsio automates W-9 and COI collection inside QuickBooks, so you stay compliant and capture the cash impact.
+
+Worth 15 minutes to see your “money at risk” in real time?
+
+[Book a Demo]
+
+— Phil McDonald
+Founder, Pulsio
+
+⸻
+
+Email 2 – Social Proof + Urgency
+Subject: “How {{ContractorName}} hit 100% vendor compliance”
+Body:
+Hi {{FirstName}},
+
+{{ContractorName}}, a GC in {{Region}}, went from 62% to 100% vendor compliance in 30 days with Pulsio—without sending a single follow-up email.
+
+They now have:
+	•	All W-9s & COIs in one place
+	•	Auto-reminders for renewals
+	•	100% visibility on money at risk vs. saved
+
+Want me to run your numbers? I can show you the exact ROI before you decide.
+
+— Phil
+
+⸻
+
+LinkedIn Connection Note
+Hi {{FirstName}}, saw you manage AP/vendor compliance for {{Company}}. I help GCs using QuickBooks hit 100% vendor compliance while unlocking early-payment discounts. Let’s connect.
+
+⸻
+
+LinkedIn DM After Connection
+Hi {{FirstName}}, curious—how do you track W-9s and COIs today? I’ve built a QuickBooks-integrated tool that automates this and ties it directly to the cash impact. Happy to share a quick ROI snapshot.
+
+⸻
+
+4️⃣ Competitive One-Pager
+
+Header:
+
+Why Pulsio Wins in Vendor Compliance Automation
+
+Feature / Competitor	Pulsio	MyCOI	TrustLayer	Tax1099	QBO Add-Ons
+QBO Native Integration	✅ Deep sync (vendors, bills, compliance)	❌	❌	Partial	Partial
+W-9 & COI in One Platform	✅	❌ (COI only)	✅	❌ (W-9 only)	❌
+ROI Dashboard (Money at Risk)	✅	❌	❌	❌	❌
+Automated Reminders	✅	✅	✅	✅	❌
+Pricing Simplicity	✅ Flat vendor tiers	❌	❌	❌	❌
+SMB Contractor Focus	✅	❌ (mid/enterprise)	❌ (insurance focus)	❌ (tax focus)	❌
+
+Positioning Statement:
+
+Unlike broad compliance platforms, Pulsio is purpose-built for small to mid-size contractors running QuickBooks Online. We automate W-9 and COI collection, track expirations, and surface the cash impact—making compliance pay for itself.
+
+⸻
+
+If you want, I can also give you ready-to-ship PDF designs for the pricing page, security page, and one-pager so they’re plug-and-play on your site + outbound.
+
+Do you want me to move straight into design + PDF formatting for these so you can start sending them to prospects next week?

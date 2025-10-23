@@ -1,0 +1,26 @@
+Form W-9 (Rev. December 2020)
+Request for Taxpayer Identification Number and Certification
+Department of the Treasury - Internal Revenue Service
+
+1. Name (as shown on your income tax return): ABC Electric Inc.
+2. Business name/disregarded entity name: ABC Electric Inc.
+3. Check appropriate box for federal tax classification:
+   ☑ Corporation
+4. Exemptions: N/A
+5. Address: 123 Main Street, Anytown, ST 12345
+6. Account number(s): N/A
+
+Part I: Taxpayer Identification Number (TIN)
+Enter your TIN in the appropriate box:
+Social security number: [blank]
+Employer identification number: 12-3456789
+
+Part II: Certification
+Under penalties of perjury, I certify that:
+1. The number shown on this form is my correct taxpayer identification number
+2. I am not subject to backup withholding
+3. I am a U.S. citizen or other U.S. person
+4. The FATCA code(s) entered on this form (if any) indicating that I am exempt from FATCA reporting is correct.
+
+Signature: ABC Electric Inc.
+Date: January 31, 2025
