@@ -426,10 +426,10 @@ export default function LandingPage() {
       <section className="container mx-auto px-4 py-16 bg-blue-600 text-white">
         <div className="max-w-4xl mx-auto text-center">
           <h2 className="text-3xl font-bold mb-6">
-            Ready to Stop Losing Money on Missing Documents?
+            Ready to Protect Your Business from Liability Risk?
           </h2>
           <p className="text-xl mb-8 text-blue-100">
-            Join contractors who are saving $5,000-$15,000 per year with automated compliance.
+            Join {isJobberMode ? 'field service professionals' : 'contractors'} who are automating COI compliance and eliminating coverage gaps.
           </p>
           <div className="flex flex-col sm:flex-row gap-4 justify-center">
             <Button size="lg" onClick={handleGetStarted} className="bg-white text-blue-600 hover:bg-gray-100">
