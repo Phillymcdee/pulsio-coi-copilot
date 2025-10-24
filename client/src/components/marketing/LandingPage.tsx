@@ -6,6 +6,7 @@ import { useLocation } from "wouter";
 
 export default function LandingPage() {
   const [, navigate] = useLocation();
+  const isJobberMode = import.meta.env.VITE_FEATURE_JOBBER === 'true';
 
   const handleGetStarted = () => {
     navigate("/signup");
@@ -81,7 +82,7 @@ export default function LandingPage() {
           <div className="flex items-center justify-center gap-8 text-sm text-gray-500">
             <div className="flex items-center gap-2">
               <CheckCircle className="w-4 h-4 text-green-600" />
-              <span>QuickBooks Certified</span>
+              <span>{isJobberMode ? 'Jobber Certified' : 'QuickBooks Certified'}</span>
             </div>
             <div className="flex items-center gap-2">
               <Shield className="w-4 h-4 text-blue-600" />
@@ -157,8 +158,8 @@ export default function LandingPage() {
               <div className="flex items-start gap-4">
                 <div className="bg-blue-100 text-blue-600 rounded-full w-8 h-8 flex items-center justify-center font-bold text-sm">1</div>
                 <div>
-                  <h3 className="font-semibold mb-2">Connect QuickBooks</h3>
-                  <p className="text-gray-600">One-click integration pulls all your vendor information automatically</p>
+                  <h3 className="font-semibold mb-2">Connect {isJobberMode ? 'Jobber' : 'QuickBooks'}</h3>
+                  <p className="text-gray-600">One-click integration pulls all your {isJobberMode ? 'client' : 'vendor'} information automatically</p>
                 </div>
               </div>
               
@@ -275,12 +276,12 @@ export default function LandingPage() {
               <CardHeader>
                 <div className="flex items-center gap-2">
                   <Shield className="w-6 h-6 text-indigo-600" />
-                  <CardTitle>QuickBooks Integration</CardTitle>
+                  <CardTitle>{isJobberMode ? 'Jobber Integration' : 'QuickBooks Integration'}</CardTitle>
                 </div>
               </CardHeader>
               <CardContent>
                 <CardDescription>
-                  Seamless sync with your existing accounting workflow. No duplicate data entry required.
+                  Seamless sync with your existing {isJobberMode ? 'field service' : 'accounting'} workflow. No duplicate data entry required.
                 </CardDescription>
               </CardContent>
             </Card>
@@ -345,7 +346,7 @@ export default function LandingPage() {
                 </div>
                 <div className="flex items-center gap-2">
                   <CheckCircle className="w-4 h-4 text-green-600" />
-                  <span className="text-sm">QuickBooks sync</span>
+                  <span className="text-sm">{isJobberMode ? 'Jobber sync' : 'QuickBooks sync'}</span>
                 </div>
                 <Button className="w-full mt-6" variant="outline">Choose Plan</Button>
               </CardContent>
