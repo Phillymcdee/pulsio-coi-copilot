@@ -521,7 +521,7 @@ export default function UploadPage() {
               ) : (
                 <>
                   <Upload className="w-4 h-4 mr-2" />
-                  Upload {documentType}
+                  Upload Certificate
                 </>
               )}
             </Button>

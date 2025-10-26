@@ -29,7 +29,7 @@ import { formatDistanceToNow } from "date-fns";
 interface VendorModalProps {
   vendor: any;
   onUpdateVendor: (data: { name?: string; email?: string; phone?: string; notes?: string; isExempt?: boolean }) => void;
-  onSendReminder: (data: { type: 'W9' | 'COI'; channel: 'email' | 'sms' }) => void;
+  onSendReminder: (data: { type: 'COI'; channel: 'email' | 'sms' }) => void;
   isUpdating: boolean;
   isSendingReminder: boolean;
   isOpen: boolean;
@@ -83,7 +83,7 @@ export function VendorModal({
     }
   };
 
-  const handleDownloadDocument = async (docType: 'W9' | 'COI') => {
+  const handleDownloadDocument = async (docType: 'COI') => {
     try {
       console.log(`Download ${docType} button clicked for vendor:`, vendor.id);
       
@@ -129,7 +129,6 @@ export function VendorModal({
   };
 
   const handleDownloadCOI = () => handleDownloadDocument('COI');
-  const handleDownloadW9 = () => handleDownloadDocument('W9');
 
   const handleSaveEdit = () => {
     onUpdateVendor({
@@ -385,43 +384,7 @@ export function VendorModal({
           {/* Left Column - Main Content */}
           <div className="lg:col-span-2 space-y-6">
             {/* Document Status Cards */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              {/* W-9 Status */}
-              <Card className={getStatusColor(vendor.w9Status)}>
-                <CardContent className="p-4">
-                  <div className="flex items-center justify-between mb-2">
-                    <div className="flex items-center space-x-2">
-                      {getStatusIcon(vendor.w9Status)}
-                      <span className="font-medium">W-9 Form</span>
-                    </div>
-                    <Badge variant="outline" className={getStatusColor(vendor.w9Status)}>
-                      {vendor.w9Status}
-                    </Badge>
-                  </div>
-                  <p className="text-sm mb-3">Required for 1099 reporting</p>
-                  {vendor.w9Status === 'MISSING' ? (
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      onClick={() => onSendReminder({ type: 'W9', channel: 'email' })}
-                      disabled={isSendingReminder}
-                    >
-                      {isSendingReminder ? (
-                        <Loader2 className="w-4 h-4 mr-1 animate-spin" />
-                      ) : (
-                        <Send className="w-4 h-4 mr-1" />
-                      )}
-                      Send Reminder
-                    </Button>
-                  ) : (
-                    <Button size="sm" variant="outline" onClick={handleDownloadW9}>
-                      <Download className="w-4 h-4 mr-1" />
-                      Download PDF
-                    </Button>
-                  )}
-                </CardContent>
-              </Card>
-
+            <div className="grid grid-cols-1 gap-4">
               {/* COI Status */}
               <Card className={getStatusColor(vendor.coiStatus)}>
                 <CardContent className="p-4">
@@ -651,31 +614,6 @@ export function VendorModal({
               <CardContent className="p-4">
                 <h4 className="font-medium text-gray-900 mb-3">Quick Actions</h4>
                 <div className="space-y-2">
-                  {vendor.w9Status === 'MISSING' && (
-                    <>
-                      <Button
-                        variant="ghost"
-                        className="w-full justify-start text-primary hover:bg-primary/5"
-                        onClick={() => onSendReminder({ type: 'W9', channel: 'email' })}
-                        disabled={isSendingReminder}
-                      >
-                        <Mail className="w-4 h-4 mr-2" />
-                        Resend W-9 Reminder (Email)
-                      </Button>
-                      {vendor.phone && (
-                        <Button
-                          variant="ghost"
-                          className="w-full justify-start text-green-600 hover:bg-green-50"
-                          onClick={() => onSendReminder({ type: 'W9', channel: 'sms' })}
-                          disabled={isSendingReminder}
-                        >
-                          <Phone className="w-4 h-4 mr-2" />
-                          Send W-9 Reminder (SMS)
-                        </Button>
-                      )}
-                    </>
-                  )}
-                  
                   {(vendor.coiStatus === 'MISSING' || vendor.coiStatus === 'EXPIRED') && (
                     <>
                       <Button
