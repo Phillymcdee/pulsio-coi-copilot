@@ -16,7 +16,6 @@ interface Vendor {
   name: string;
   email: string;
   companyName: string;
-  w9Status: string;
   coiStatus: string;
 }
 
@@ -39,7 +38,6 @@ export default function UploadPage() {
   const [match, params] = useRoute('/upload/:vendorId');
   const { toast } = useToast();
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
-  const [documentType, setDocumentType] = useState<'W9' | 'COI'>('W9');
   const [isDragOver, setIsDragOver] = useState(false);
   const [showConfirmation, setShowConfirmation] = useState(false);
   const [uploadedDocument, setUploadedDocument] = useState<UploadedDocument | null>(null);
@@ -80,19 +78,18 @@ export default function UploadPage() {
       return response.json();
     },
     onSuccess: (data) => {
-      if (documentType === 'COI' && data.document?.parsedData) {
+      if (data.document?.parsedData) {
         // Show confirmation screen for COI with parsed data
         setUploadedDocument(data.document);
         setParsedFields(data.document.parsedData);
         setShowConfirmation(true);
       } else {
-        // For W9 or COI without parsed data, show success immediately
+        // COI without parsed data, show success immediately
         toast({
           title: "Document uploaded successfully!",
-          description: `Your ${documentType} has been received. Thank you!`,
+          description: "Your Certificate of Insurance has been received. Thank you!",
         });
         setSelectedFile(null);
-        setDocumentType('W9');
       }
     },
     onError: (error: Error) => {
@@ -167,7 +164,7 @@ export default function UploadPage() {
       return;
     }
 
-    uploadMutation.mutate({ file: selectedFile, type: documentType });
+    uploadMutation.mutate({ file: selectedFile, type: 'COI' });
   };
 
   // Mutation to update document with corrected data
@@ -193,7 +190,6 @@ export default function UploadPage() {
       // Reset state
       setShowConfirmation(false);
       setSelectedFile(null);
-      setDocumentType('W9');
       setUploadedDocument(null);
       setParsedFields({});
     },
@@ -241,7 +237,6 @@ export default function UploadPage() {
     );
   }
 
-  const isW9Complete = vendor.w9Status === 'RECEIVED';
   const isCOIComplete = vendor.coiStatus === 'RECEIVED';
 
   // Show confirmation screen if COI was uploaded with parsed data
@@ -424,32 +419,16 @@ export default function UploadPage() {
         <div className="text-center mb-8">
           <FileText className="w-16 h-16 text-blue-600 mx-auto mb-4" />
           <h1 className="text-3xl font-bold text-gray-900 dark:text-white">
-            Document Upload
+            Certificate of Insurance Upload
           </h1>
           <p className="mt-2 text-gray-600 dark:text-gray-400">
-            Upload your W-9 or Certificate of Insurance for <strong>{vendor.companyName}</strong>
+            Upload your Certificate of Insurance for <strong>{vendor.companyName}</strong>
           </p>
         </div>
 
         {/* Status Display */}
-        <div className="grid md:grid-cols-2 gap-4 mb-8">
-          <Card className={`border-2 ${isW9Complete ? 'border-green-200 bg-green-50 dark:bg-green-900/20' : 'border-gray-200'}`}>
-            <CardContent className="p-4 flex items-center space-x-3">
-              {isW9Complete ? (
-                <CheckCircle className="w-8 h-8 text-green-600" />
-              ) : (
-                <FileText className="w-8 h-8 text-gray-400" />
-              )}
-              <div>
-                <h3 className="font-semibold">W-9 Form</h3>
-                <p className={`text-sm ${isW9Complete ? 'text-green-600' : 'text-gray-500'}`}>
-                  {isW9Complete ? 'Received ✓' : 'Pending'}
-                </p>
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card className={`border-2 ${isCOIComplete ? 'border-green-200 bg-green-50 dark:bg-green-900/20' : 'border-gray-200'}`}>
+        <div className="flex justify-center mb-8">
+          <Card className={`border-2 max-w-md w-full ${isCOIComplete ? 'border-green-200 bg-green-50 dark:bg-green-900/20' : 'border-gray-200'}`}>
             <CardContent className="p-4 flex items-center space-x-3">
               {isCOIComplete ? (
                 <CheckCircle className="w-8 h-8 text-green-600" />
@@ -475,20 +454,6 @@ export default function UploadPage() {
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-6">
-            {/* Document Type Selection */}
-            <div className="space-y-2">
-              <Label htmlFor="document-type">Document Type</Label>
-              <Select value={documentType} onValueChange={(value: 'W9' | 'COI') => setDocumentType(value)}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Select document type" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="W9">W-9 Tax Form</SelectItem>
-                  <SelectItem value="COI">Certificate of Insurance</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-
             {/* File Upload Area */}
             <div className="space-y-2">
               <Label>Upload File</Label>

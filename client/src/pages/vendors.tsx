@@ -229,17 +229,6 @@ export default function Vendors() {
 
                     <div className="space-y-3">
                       <div className="flex items-center justify-between">
-                        <span className="text-sm font-medium text-gray-700">W-9 Form</span>
-                        <Badge 
-                          variant="outline" 
-                          className={`flex items-center space-x-1 ${getStatusColor(vendor.w9Status)}`}
-                        >
-                          {getStatusIcon(vendor.w9Status)}
-                          <span className="capitalize">{vendor.w9Status?.toLowerCase()}</span>
-                        </Badge>
-                      </div>
-
-                      <div className="flex items-center justify-between">
                         <span className="text-sm font-medium text-gray-700">COI Certificate</span>
                         <Badge 
                           variant="outline" 

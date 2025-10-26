@@ -71,7 +71,7 @@ export default function VendorDetail() {
   });
 
   const sendReminderMutation = useMutation({
-    mutationFn: async (data: { type: 'W9' | 'COI'; channel: 'email' | 'sms' }) => {
+    mutationFn: async (data: { type: 'COI'; channel: 'email' | 'sms' }) => {
       const response = await apiRequest("POST", `/api/vendors/${vendorId}/remind`, data);
       return response.json();
     },
