@@ -173,6 +173,46 @@ export default function Settings() {
     },
   });
 
+  const connectJobberMutation = useMutation({
+    mutationFn: async () => {
+      const response = await apiRequest("GET", "/api/jobber/auth-url");
+      return response.json();
+    },
+    onSuccess: (data) => {
+      // Redirect to Jobber OAuth page
+      window.location.href = data.authUrl;
+    },
+    onError: (error) => {
+      toast({
+        title: "Error",
+        description: "Failed to connect to Jobber. Please try again.",
+        variant: "destructive",
+      });
+    },
+  });
+
+  const jobberSyncMutation = useMutation({
+    mutationFn: async () => {
+      const response = await apiRequest("POST", "/api/jobber/sync");
+      return response.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/account"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/vendors"] });
+      toast({
+        title: "Sync Started",
+        description: "Jobber clients are being synced. Check the dashboard for updates.",
+      });
+    },
+    onError: (error) => {
+      toast({
+        title: "Error",
+        description: "Failed to sync Jobber clients. Please try again.",
+        variant: "destructive",
+      });
+    },
+  });
+
   const onSubmit = (data: any) => {
     // Extract COI rules fields to avoid sending them at top level
     const { minGL, minAuto, requireAdditionalInsured, requireWaiver, expiryWarningDays, ...otherFields } = data;
@@ -627,10 +667,49 @@ export default function Settings() {
                   </div>
                 </div>
                 
-                {(account as any)?.jobberAccessToken && (
-                  <div className="flex items-center space-x-2">
+                {(account as any)?.jobberAccessToken ? (
+                  <div className="flex flex-col space-y-3">
+                    <div className="flex items-center space-x-2">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => jobberSyncMutation.mutate()}
+                        disabled={jobberSyncMutation.isPending}
+                        data-testid="button-sync-jobber"
+                      >
+                        {jobberSyncMutation.isPending ? (
+                          <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                        ) : (
+                          <CheckCircle className="w-4 h-4 mr-2" />
+                        )}
+                        Sync Now
+                      </Button>
+                      <p className="text-sm text-gray-500">
+                        Last sync: {(account as any)?.updatedAt ? formatDistanceToNow(new Date((account as any).updatedAt), { addSuffix: true }) : 'Never'}
+                      </p>
+                    </div>
                     <p className="text-sm text-gray-500">
-                      Syncing clients and jobs automatically via webhooks
+                      Syncing clients automatically. You can also trigger a manual sync anytime.
+                    </p>
+                  </div>
+                ) : (
+                  <div className="flex flex-col space-y-3">
+                    <Button
+                      variant="default"
+                      size="sm"
+                      onClick={() => connectJobberMutation.mutate()}
+                      disabled={connectJobberMutation.isPending}
+                      data-testid="button-connect-jobber"
+                    >
+                      {connectJobberMutation.isPending ? (
+                        <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                      ) : (
+                        <ExternalLink className="w-4 h-4 mr-2" />
+                      )}
+                      Connect to Jobber
+                    </Button>
+                    <p className="text-sm text-gray-500">
+                      Connect your Jobber account to automatically sync clients and track their Certificate of Insurance compliance.
                     </p>
                   </div>
                 )}
