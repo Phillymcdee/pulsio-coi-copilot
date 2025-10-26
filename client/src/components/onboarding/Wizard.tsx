@@ -314,11 +314,11 @@ export function Wizard({
                 <div className="mb-3 p-3 bg-gray-50 rounded-lg border text-sm">
                   <p className="font-medium text-gray-700 mb-2">Default Email Template:</p>
                   <div className="text-gray-600 space-y-1">
-                    <p><strong>Subject:</strong> W-9 Form Required - {'{{company_name}}'}</p>
+                    <p><strong>Subject:</strong> Certificate of Insurance Required - {'{{company_name}}'}</p>
                     <div className="bg-white p-2 rounded border text-xs">
                       <p><strong>Hello {'{{vendor_name}}'},</strong></p>
-                      <p>We need your completed W-9 form for our records. This is required for tax reporting purposes.</p>
-                      <p><em>[Upload W-9 Form Button]</em></p>
+                      <p>We need your current Certificate of Insurance (COI) for our records. This is required for compliance purposes.</p>
+                      <p><em>[Upload Certificate Button]</em></p>
                       <p>If you have any questions, please don't hesitate to contact us.</p>
                       <p><strong>Best regards,<br/>{'{{company_name}}'}</strong></p>
                     </div>
@@ -344,9 +344,9 @@ export function Wizard({
                 <div className="mb-3 p-3 bg-gray-50 rounded-lg border text-sm">
                   <p className="font-medium text-gray-700 mb-2">Default SMS Template:</p>
                   <div className="bg-white p-2 rounded border text-xs font-mono">
-                    Hi {'{{vendor_name}}'}, we need your W-9 form for tax reporting. Please upload it here: {'{{upload_link}}'} - {'{{company_name}}'}
+                    Hi {'{{vendor_name}}'}, we need your Certificate of Insurance. Please upload it here: {'{{upload_link}}'} - {'{{company_name}}'}
                   </div>
-                  <p className="text-xs text-gray-500 mt-1">156 characters (within 160 limit)</p>
+                  <p className="text-xs text-gray-500 mt-1">147 characters (within 160 limit)</p>
                 </div>
                 <Textarea
                   id="smsTemplate"
@@ -366,7 +366,7 @@ export function Wizard({
                 <AlertTriangle className="w-5 h-5 text-blue-600 mt-0.5 flex-shrink-0" />
                 <div>
                   <p className="text-sm font-medium text-blue-900">Ready to Start Collecting Documents?</p>
-                  <p className="text-sm text-blue-700">This will send real reminder emails to vendors who are missing W-9s or Certificates of Insurance.</p>
+                  <p className="text-sm text-blue-700">This will send real reminder emails to vendors who are missing Certificates of Insurance.</p>
                 </div>
               </div>
               <div className="flex items-center space-x-2">

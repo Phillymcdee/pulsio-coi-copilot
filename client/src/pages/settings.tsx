@@ -344,14 +344,14 @@ export default function Settings() {
                   <div className="mb-3 p-4 bg-gray-50 rounded-lg border">
                     <p className="font-medium text-gray-700 mb-2">Default Email Template:</p>
                     <div className="bg-white p-3 rounded border text-sm space-y-2">
-                      <p><strong>Subject:</strong> W-9 Form Required - {'{{company_name}}'}</p>
+                      <p><strong>Subject:</strong> Certificate of Insurance Required - {'{{company_name}}'}</p>
                       <div className="border-t pt-2 space-y-2 text-gray-700">
-                        <h3 className="text-lg font-semibold text-blue-600">W-9 Form Required</h3>
+                        <h3 className="text-lg font-semibold text-blue-600">Certificate of Insurance Required</h3>
                         <p>Hello <span className="bg-yellow-100 px-1 rounded">{'{{vendor_name}}'}</span>,</p>
-                        <p>We need your completed W-9 form for our records. This is required for tax reporting purposes.</p>
+                        <p>We need your current Certificate of Insurance (COI) for our records. This is required for compliance purposes.</p>
                         <div className="my-4">
                           <span className="bg-blue-600 text-white px-4 py-2 rounded inline-block text-sm">
-                            Upload W-9 Form
+                            Upload Certificate
                           </span>
                         </div>
                         <p>If you have any questions, please don't hesitate to contact us.</p>
@@ -382,9 +382,9 @@ export default function Settings() {
                   <div className="mb-3 p-4 bg-gray-50 rounded-lg border">
                     <p className="font-medium text-gray-700 mb-2">Default SMS Template:</p>
                     <div className="bg-white p-3 rounded border text-sm font-mono">
-                      Hi <span className="bg-yellow-100 px-1 rounded">{'{{vendor_name}}'}</span>, we need your W-9 form for tax reporting. Please upload it here: <span className="bg-yellow-100 px-1 rounded">{'{{upload_link}}'}</span> - <span className="bg-yellow-100 px-1 rounded">{'{{company_name}}'}</span>
+                      Hi <span className="bg-yellow-100 px-1 rounded">{'{{vendor_name}}'}</span>, we need your Certificate of Insurance. Please upload it here: <span className="bg-yellow-100 px-1 rounded">{'{{upload_link}}'}</span> - <span className="bg-yellow-100 px-1 rounded">{'{{company_name}}'}</span>
                     </div>
-                    <p className="text-xs text-gray-500 mt-2">156 characters (within 160 SMS limit)</p>
+                    <p className="text-xs text-gray-500 mt-2">147 characters (within 160 SMS limit)</p>
                   </div>
                   
                   <Textarea

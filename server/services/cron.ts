@@ -12,11 +12,14 @@ export class CronService {
   start(): void {
     logger.info('Starting Pulsio cron services...');
 
-    // QuickBooks sync - every 20 minutes
-    const syncJob = cron.schedule('*/20 * * * *', async () => {
-      logger.cron('quickbooks-sync', 'started');
-      await this.syncAllAccounts();
-    });
+    // QuickBooks sync - every 20 minutes (only if QBO feature is enabled)
+    if (process.env.FEATURE_QBO === 'true') {
+      const syncJob = cron.schedule('*/20 * * * *', async () => {
+        logger.cron('quickbooks-sync', 'started');
+        await this.syncAllAccounts();
+      });
+      this.jobs.set('sync', syncJob);
+    }
 
     // Daily reminder job - runs at 9 AM every day
     const reminderJob = cron.schedule('0 9 * * *', async () => {
@@ -30,7 +33,6 @@ export class CronService {
       await this.checkExpiringCOIs();
     });
 
-    this.jobs.set('sync', syncJob);
     this.jobs.set('reminders', reminderJob);
     this.jobs.set('expiry', expiryJob);
 
@@ -232,34 +234,6 @@ export class CronService {
 
         const uploadLink = `https://${process.env.REPLIT_DOMAINS?.split(',')[0]}/upload/${vendor.id}`;
         
-        // Send W-9 reminder if missing
-        if (vendor.w9Status === 'MISSING' && vendor.email) {
-          try {
-            await emailService.sendW9Reminder(vendor.id, uploadLink);
-            
-            // Emit SSE event for reminder sent
-            eventBus.emit('reminder.sent', {
-              accountId,
-              vendorName: vendor.name,
-              docType: 'W9',
-              channel: 'email',
-            });
-            
-            // Also send SMS if phone available
-            if (vendor.phone) {
-              await smsService.sendW9ReminderSMS(vendor.id, uploadLink);
-              eventBus.emit('reminder.sent', {
-                accountId,
-                vendorName: vendor.name,
-                docType: 'W9',
-                channel: 'sms',
-              });
-            }
-          } catch (error) {
-            console.error(`Error sending W-9 reminder to ${vendor.name}:`, error);
-          }
-        }
-
         // Send COI reminder if missing or expiring
         if ((vendor.coiStatus === 'MISSING' || vendor.coiStatus === 'EXPIRED') && vendor.email) {
           try {
