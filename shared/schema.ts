@@ -70,7 +70,7 @@ export const accounts = pgTable("accounts", {
 
 // Document status and reminder type enums
 export const docStateEnum = pgEnum('doc_state', ['MISSING', 'RECEIVED', 'EXPIRED']);
-export const reminderTypeEnum = pgEnum('reminder_type', ['W9', 'COI']);
+export const reminderTypeEnum = pgEnum('reminder_type', ['W9', 'COI']); // W9 kept for backward compatibility, hidden from UI
 export const reminderChannelEnum = pgEnum('reminder_channel', ['email', 'sms']);
 
 // Vendors table
