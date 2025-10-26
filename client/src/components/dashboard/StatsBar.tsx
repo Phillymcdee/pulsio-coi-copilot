@@ -13,6 +13,9 @@ export function StatsBar() {
   const [showMissingDocs, setShowMissingDocs] = useState(false);
   const [showExpiringCOIs, setShowExpiringCOIs] = useState(false);
   
+  // Detect feature mode
+  const isJobberMode = import.meta.env.VITE_FEATURE_JOBBER === 'true';
+  
   const { data: stats, isLoading } = useQuery({
     queryKey: ["/api/dashboard/compliance-stats"],
   });
@@ -23,22 +26,25 @@ export function StatsBar() {
 
   const syncMutation = useMutation({
     mutationFn: async () => {
-      const response = await apiRequest("POST", "/api/qbo/sync");
+      const endpoint = isJobberMode ? "/api/jobber/sync" : "/api/qbo/sync";
+      const response = await apiRequest("POST", endpoint);
       return response.json();
     },
     onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: ["/api/dashboard/compliance-stats"] });
       queryClient.invalidateQueries({ queryKey: ["/api/vendors"] });
       queryClient.invalidateQueries({ queryKey: ["/api/timeline"] });
+      const source = isJobberMode ? "Jobber" : "QuickBooks";
       toast({
         title: "Sync Complete",
-        description: `Successfully synced ${data.vendorCount} vendors from QuickBooks`,
+        description: `Successfully synced ${data.vendorCount || data.clientCount || 0} ${isJobberMode ? 'clients' : 'vendors'} from ${source}`,
       });
     },
     onError: (error: any) => {
+      const source = isJobberMode ? "Jobber" : "QuickBooks";
       toast({
         title: "Sync Failed",
-        description: error.message || "Failed to sync QuickBooks data",
+        description: error.message || `Failed to sync ${source} data`,
         variant: "destructive",
       });
     },
@@ -62,26 +68,54 @@ export function StatsBar() {
         <div className="flex items-center justify-between mb-4">
           <h2 className="text-lg font-semibold text-gray-900">Account Overview</h2>
           <div className="flex items-center space-x-3">
-            {(account as any)?.qboAccessToken && (
-              <>
-                <div className="flex items-center space-x-2 text-sm text-green-600">
-                  <CheckCircle className="w-4 h-4" />
-                  <span>QBO connected</span>
-                </div>
-                <Button
-                  onClick={() => syncMutation.mutate()}
-                  disabled={syncMutation.isPending}
-                  size="sm"
-                  variant="outline"
-                >
-                  {syncMutation.isPending ? (
-                    <Loader2 className="w-4 h-4 animate-spin mr-2" />
-                  ) : (
-                    <RefreshCw className="w-4 h-4 mr-2" />
-                  )}
-                  Sync Now
-                </Button>
-              </>
+            {isJobberMode ? (
+              // Jobber mode - show Jobber connection status
+              (account as any)?.jobberAccessToken && (
+                <>
+                  <div className="flex items-center space-x-2 text-sm text-green-600" data-testid="text-jobber-connected">
+                    <CheckCircle className="w-4 h-4" />
+                    <span>Jobber connected</span>
+                  </div>
+                  <Button
+                    onClick={() => syncMutation.mutate()}
+                    disabled={syncMutation.isPending}
+                    size="sm"
+                    variant="outline"
+                    data-testid="button-sync-jobber-dashboard"
+                  >
+                    {syncMutation.isPending ? (
+                      <Loader2 className="w-4 h-4 animate-spin mr-2" />
+                    ) : (
+                      <RefreshCw className="w-4 h-4 mr-2" />
+                    )}
+                    Sync Now
+                  </Button>
+                </>
+              )
+            ) : (
+              // QBO mode - show QuickBooks connection status
+              (account as any)?.qboAccessToken && (
+                <>
+                  <div className="flex items-center space-x-2 text-sm text-green-600" data-testid="text-qbo-connected">
+                    <CheckCircle className="w-4 h-4" />
+                    <span>QBO connected</span>
+                  </div>
+                  <Button
+                    onClick={() => syncMutation.mutate()}
+                    disabled={syncMutation.isPending}
+                    size="sm"
+                    variant="outline"
+                    data-testid="button-sync-qbo-dashboard"
+                  >
+                    {syncMutation.isPending ? (
+                      <Loader2 className="w-4 h-4 animate-spin mr-2" />
+                    ) : (
+                      <RefreshCw className="w-4 h-4 mr-2" />
+                    )}
+                    Sync Now
+                  </Button>
+                </>
+              )
             )}
           </div>
         </div>
