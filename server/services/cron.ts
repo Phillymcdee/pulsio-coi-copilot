@@ -1,6 +1,7 @@
 import * as cron from 'node-cron';
 import { storage } from '../storage';
 import { quickbooksService } from './quickbooks';
+import { jobberService } from './jobber';
 import { emailService } from './sendgrid';
 import { smsService } from './twilio';
 import { eventBus } from './sse';
@@ -18,7 +19,16 @@ export class CronService {
         logger.cron('quickbooks-sync', 'started');
         await this.syncAllAccounts();
       });
-      this.jobs.set('sync', syncJob);
+      this.jobs.set('qbo-sync', syncJob);
+    }
+
+    // Jobber sync - every 30 minutes (only if Jobber feature is enabled)
+    if (process.env.FEATURE_JOBBER === 'true') {
+      const jobberSyncJob = cron.schedule('*/30 * * * *', async () => {
+        logger.cron('jobber-sync', 'started');
+        await this.syncAllJobberAccounts();
+      });
+      this.jobs.set('jobber-sync', jobberSyncJob);
     }
 
     // Daily reminder job - runs at 9 AM every day
@@ -83,6 +93,46 @@ export class CronService {
       logger.cron('quickbooks-sync', 'completed');
     } catch (error) {
       logger.cron('quickbooks-sync', 'failed', { 
+        error: error instanceof Error ? error.message : String(error) 
+      });
+    }
+  }
+
+  private async syncAllJobberAccounts(): Promise<void> {
+    try {
+      // Get all accounts that have Jobber connected
+      const accounts = await storage.getAllAccounts();
+      
+      for (const account of accounts) {
+        if (account.jobberAccessToken && account.jobberAccountId) {
+          try {
+            logger.info(`Starting Jobber sync for account: ${account.companyName}`, { accountId: account.id });
+            
+            await jobberService.syncClients(account.id);
+            const vendors = await storage.getVendorsByAccountId(account.id);
+            
+            // Emit SSE event for sync completion
+            eventBus.emit('jobber.sync', {
+              accountId: account.id,
+              vendorCount: vendors.length,
+            });
+            
+            logger.info(`Jobber sync completed for account: ${account.companyName}`, { 
+              accountId: account.id,
+              vendorCount: vendors.length 
+            });
+          } catch (error) {
+            logger.error(`Error syncing Jobber account ${account.companyName}`, { 
+              accountId: account.id,
+              error: error instanceof Error ? error.message : String(error)
+            });
+          }
+        }
+      }
+      
+      logger.cron('jobber-sync', 'completed');
+    } catch (error) {
+      logger.cron('jobber-sync', 'failed', { 
         error: error instanceof Error ? error.message : String(error) 
       });
     }
