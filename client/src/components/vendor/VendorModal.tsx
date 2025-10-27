@@ -45,6 +45,10 @@ export function VendorModal({
   isOpen,
   onClose 
 }: VendorModalProps) {
+  // Detect feature mode
+  const isJobberMode = import.meta.env.VITE_FEATURE_JOBBER === 'true';
+  const syncSource = isJobberMode ? 'Jobber' : 'QuickBooks';
+  
   const [notes, setNotes] = useState(vendor?.notes || '');
   const [lastSavedNotes, setLastSavedNotes] = useState(vendor?.notes || '');
   const [isEditing, setIsEditing] = useState(false);
@@ -60,7 +64,6 @@ export function VendorModal({
   });
 
   const coiDocument = documents?.find((doc: any) => doc.type === 'COI');
-  const isJobberMode = import.meta.env.VITE_FEATURE_JOBBER === 'true';
 
   if (!isOpen || !vendor) return null;
 
@@ -273,7 +276,7 @@ export function VendorModal({
                       />
                       {vendor.qboId && vendor.qboPhone && vendor.qboPhone !== editForm.phone && (
                         <p className="text-xs text-gray-500 mt-1">
-                          QuickBooks: {vendor.qboPhone}
+                          {syncSource}: {vendor.qboPhone}
                         </p>
                       )}
                     </div>
@@ -302,7 +305,7 @@ export function VendorModal({
                     )}
                     {vendor.qboId && (
                       <span className="text-xs text-blue-600 bg-blue-50 px-2 py-1 rounded flex items-center space-x-1">
-                        <span>Synced from QuickBooks</span>
+                        <span>Synced from {syncSource}</span>
                       </span>
                     )}
                   </div>
