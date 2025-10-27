@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useAuth } from "@/hooks/useAuth";
 import { useToast } from "@/hooks/use-toast";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
@@ -12,6 +12,25 @@ export default function Onboarding() {
   const { isAuthenticated, isLoading } = useAuth();
   const [, navigate] = useLocation();
   const queryClient = useQueryClient();
+
+  // Handle OAuth callback success
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const qboSuccess = params.get('qbo') === 'success';
+    const jobberSuccess = params.get('jobber') === 'success';
+    
+    if (qboSuccess || jobberSuccess) {
+      queryClient.invalidateQueries({ queryKey: ["/api/account"] });
+      toast({
+        title: qboSuccess ? "QuickBooks Connected!" : "Jobber Connected!",
+        description: qboSuccess 
+          ? "Your vendors and bills are being synced." 
+          : "Your clients and jobs are being synced.",
+      });
+      // Clean up URL
+      window.history.replaceState({}, '', '/onboarding');
+    }
+  }, [queryClient, toast]);
 
   // Redirect to login if not authenticated
   if (!isLoading && !isAuthenticated) {

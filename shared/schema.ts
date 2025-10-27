@@ -45,10 +45,19 @@ export const accounts = pgTable("accounts", {
   userId: varchar("user_id").references(() => users.id).notNull(),
   companyName: varchar("company_name").notNull(),
   fromName: varchar("from_name"), // Custom sender display name for emails
+  // QuickBooks OAuth fields
   qboCompanyId: varchar("qbo_company_id"),
   qboAccessToken: text("qbo_access_token"),
   qboRefreshToken: text("qbo_refresh_token"),
   qboTokenExpiry: timestamp("qbo_token_expiry"),
+  // Jobber OAuth fields
+  jobberAccountId: varchar("jobber_account_id"),
+  jobberAccessToken: text("jobber_access_token"),
+  jobberRefreshToken: text("jobber_refresh_token"),
+  jobberTokenExpiry: timestamp("jobber_token_expiry"),
+  // COI compliance rules (JSON schema)
+  coiRules: jsonb("coi_rules"),
+  // General settings
   reminderCadence: varchar("reminder_cadence").default('0 9 * * *'), // Daily at 9 AM
   emailTemplate: text("email_template"),
   smsTemplate: text("sms_template"),
@@ -61,7 +70,7 @@ export const accounts = pgTable("accounts", {
 
 // Document status and reminder type enums
 export const docStateEnum = pgEnum('doc_state', ['MISSING', 'RECEIVED', 'EXPIRED']);
-export const reminderTypeEnum = pgEnum('reminder_type', ['W9', 'COI']);
+export const reminderTypeEnum = pgEnum('reminder_type', ['W9', 'COI']); // W9 kept for backward compatibility, hidden from UI
 export const reminderChannelEnum = pgEnum('reminder_channel', ['email', 'sms']);
 
 // Vendors table
@@ -69,6 +78,7 @@ export const vendors = pgTable("vendors", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
   accountId: varchar("account_id").references(() => accounts.id).notNull(),
   qboId: varchar("qbo_id"), // Nullable for manually added vendors
+  jobberId: varchar("jobber_id"), // Nullable for manually added vendors, maps to Jobber client ID
   name: varchar("name").notNull(),
   email: varchar("email"),
   phone: varchar("phone"),
@@ -105,6 +115,8 @@ export const documents = pgTable("documents", {
   uploadedAt: timestamp("uploaded_at").defaultNow(),
   expiresAt: timestamp("expires_at"),
   extractedText: text("extracted_text"), // OCR extracted text for COI documents
+  parsedData: jsonb("parsed_data"), // Parsed COI fields (effectiveDate, expiryDate, glCoverage, autoCoverage, additionalInsured, waiverOfSubrogation)
+  violations: jsonb("violations"), // Array of compliance violations from rules evaluation
 });
 
 // Reminders table

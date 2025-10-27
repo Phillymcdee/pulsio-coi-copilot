@@ -47,6 +47,7 @@ export interface IStorage {
   createVendor(vendor: InsertVendor): Promise<Vendor>;
   updateVendor(id: string, updates: Partial<InsertVendor>): Promise<Vendor>;
   getVendorByQboId(accountId: string, qboId: string): Promise<Vendor | undefined>;
+  getVendorByJobberId(accountId: string, jobberId: string): Promise<Vendor | undefined>;
 
   // Document operations
   getDocumentsByVendorId(vendorId: string): Promise<Document[]>;
@@ -80,10 +81,12 @@ export interface IStorage {
     compliancePercentage: number;
     missingDocsCount: number;
     missingDocs: Array<{ vendorName: string; docType: string; vendorId: string }>;
+    missingCOIs: Array<{ vendorName: string; vendorId: string }>; // Dedicated COI-only array
     expiringCOIsCount: number;
     expiringCOIs: Array<{ vendorName: string; daysUntilExpiry: number; vendorId: string }>;
     moneyAtRisk: number;
     remindersSent: number;
+    jobsAtRisk: number; // Jobs with non-compliant vendors
   }>;
 }
 
@@ -191,6 +194,14 @@ export class DatabaseStorage implements IStorage {
       .select()
       .from(vendors)
       .where(and(eq(vendors.accountId, accountId), eq(vendors.qboId, qboId)));
+    return vendor;
+  }
+
+  async getVendorByJobberId(accountId: string, jobberId: string): Promise<Vendor | undefined> {
+    const [vendor] = await db
+      .select()
+      .from(vendors)
+      .where(and(eq(vendors.accountId, accountId), eq(vendors.jobberId, jobberId)));
     return vendor;
   }
 
@@ -340,13 +351,13 @@ export class DatabaseStorage implements IStorage {
 
   // Dashboard stats
   async getDashboardStats(accountId: string) {
-    // Get vendor count (from QuickBooks sync)
+    // Get vendor count (from QuickBooks OR Jobber sync)
     const [vendorCount] = await db
       .select({ count: count() })
       .from(vendors)
       .where(and(
         eq(vendors.accountId, accountId),
-        sql`${vendors.qboId} IS NOT NULL`
+        sql`(${vendors.qboId} IS NOT NULL OR ${vendors.jobberId} IS NOT NULL)`
       ));
 
     // Get missing documents data
@@ -360,7 +371,7 @@ export class DatabaseStorage implements IStorage {
       .from(vendors)
       .where(and(
         eq(vendors.accountId, accountId),
-        sql`${vendors.qboId} IS NOT NULL`,
+        sql`(${vendors.qboId} IS NOT NULL OR ${vendors.jobberId} IS NOT NULL)`,
         sql`(${vendors.w9Status} = 'MISSING' OR ${vendors.coiStatus} = 'MISSING')`
       ));
 
@@ -385,7 +396,7 @@ export class DatabaseStorage implements IStorage {
       .from(vendors)
       .where(and(
         eq(vendors.accountId, accountId),
-        sql`${vendors.qboId} IS NOT NULL`,
+        sql`(${vendors.qboId} IS NOT NULL OR ${vendors.jobberId} IS NOT NULL)`,
         sql`${vendors.coiExpiry} IS NOT NULL AND ${vendors.coiExpiry} <= NOW() + INTERVAL '30 days'`
       ));
 
@@ -421,16 +432,27 @@ export class DatabaseStorage implements IStorage {
       .from(reminders)
       .where(eq(reminders.accountId, accountId));
 
+    // Extract COI-only missing docs for compliance view
+    const missingCOIs = missingDocs
+      .filter(doc => doc.docType === 'COI')
+      .map(doc => ({ vendorName: doc.vendorName, vendorId: doc.vendorId }));
+    
+    // TODO: jobsAtRisk requires querying Jobber API for jobs and checking vendor compliance
+    // For now, return 0 as we don't have local job data
+    const jobsAtRisk = 0;
+    
     return {
       totalVendors,
       compliantVendors,
       compliancePercentage,
       missingDocsCount: missingDocs.length,
       missingDocs,
+      missingCOIs, // Dedicated COI-only array
       expiringCOIsCount: expiringCOIsFormatted.length,
       expiringCOIs: expiringCOIsFormatted,
       moneyAtRisk: parseFloat(moneyAtRiskResult.total || '0'),
       remindersSent: reminderCount.count || 0,
+      jobsAtRisk, // Jobs with non-compliant vendors (from Jobber)
     };
   }
 

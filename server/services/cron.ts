@@ -1,6 +1,7 @@
 import * as cron from 'node-cron';
 import { storage } from '../storage';
 import { quickbooksService } from './quickbooks';
+import { jobberService } from './jobber';
 import { emailService } from './sendgrid';
 import { smsService } from './twilio';
 import { eventBus } from './sse';
@@ -12,11 +13,23 @@ export class CronService {
   start(): void {
     logger.info('Starting Pulsio cron services...');
 
-    // QuickBooks sync - every 20 minutes
-    const syncJob = cron.schedule('*/20 * * * *', async () => {
-      logger.cron('quickbooks-sync', 'started');
-      await this.syncAllAccounts();
-    });
+    // QuickBooks sync - every 20 minutes (only if QBO feature is enabled)
+    if (process.env.FEATURE_QBO === 'true') {
+      const syncJob = cron.schedule('*/20 * * * *', async () => {
+        logger.cron('quickbooks-sync', 'started');
+        await this.syncAllAccounts();
+      });
+      this.jobs.set('qbo-sync', syncJob);
+    }
+
+    // Jobber sync - every 30 minutes (only if Jobber feature is enabled)
+    if (process.env.FEATURE_JOBBER === 'true') {
+      const jobberSyncJob = cron.schedule('*/30 * * * *', async () => {
+        logger.cron('jobber-sync', 'started');
+        await this.syncAllJobberAccounts();
+      });
+      this.jobs.set('jobber-sync', jobberSyncJob);
+    }
 
     // Daily reminder job - runs at 9 AM every day
     const reminderJob = cron.schedule('0 9 * * *', async () => {
@@ -30,7 +43,6 @@ export class CronService {
       await this.checkExpiringCOIs();
     });
 
-    this.jobs.set('sync', syncJob);
     this.jobs.set('reminders', reminderJob);
     this.jobs.set('expiry', expiryJob);
 
@@ -86,6 +98,46 @@ export class CronService {
     }
   }
 
+  private async syncAllJobberAccounts(): Promise<void> {
+    try {
+      // Get all accounts that have Jobber connected
+      const accounts = await storage.getAllAccounts();
+      
+      for (const account of accounts) {
+        if (account.jobberAccessToken && account.jobberAccountId) {
+          try {
+            logger.info(`Starting Jobber sync for account: ${account.companyName}`, { accountId: account.id });
+            
+            await jobberService.syncClients(account.id);
+            const vendors = await storage.getVendorsByAccountId(account.id);
+            
+            // Emit SSE event for sync completion
+            eventBus.emit('jobber.sync', {
+              accountId: account.id,
+              vendorCount: vendors.length,
+            });
+            
+            logger.info(`Jobber sync completed for account: ${account.companyName}`, { 
+              accountId: account.id,
+              vendorCount: vendors.length 
+            });
+          } catch (error) {
+            logger.error(`Error syncing Jobber account ${account.companyName}`, { 
+              accountId: account.id,
+              error: error instanceof Error ? error.message : String(error)
+            });
+          }
+        }
+      }
+      
+      logger.cron('jobber-sync', 'completed');
+    } catch (error) {
+      logger.cron('jobber-sync', 'failed', { 
+        error: error instanceof Error ? error.message : String(error) 
+      });
+    }
+  }
+
   private async sendScheduledReminders(): Promise<void> {
     try {
       // Get all accounts that have completed onboarding
@@ -115,18 +167,50 @@ export class CronService {
       
       for (const account of accounts) {
         try {
+          // Get account-specific expiry warning days from coiRules
+          const coiRules = (account.coiRules as any) || {};
+          const warningDays = coiRules.expiryWarningDays || [30, 14, 7];
+          
           const vendors = await storage.getVendorsByAccountId(account.id);
           
           for (const vendor of vendors) {
             if (vendor.coiExpiry) {
               const daysUntilExpiry = Math.ceil((vendor.coiExpiry.getTime() - Date.now()) / (1000 * 60 * 60 * 24));
               
-              // Send warnings for COIs expiring in 30, 14, or 7 days
-              if ([30, 14, 7].includes(daysUntilExpiry)) {
+              // Send warnings for COIs expiring on configured warning days
+              if (warningDays.includes(daysUntilExpiry)) {
                 await emailService.sendCOIExpiryWarning(vendor.id, daysUntilExpiry);
+                
+                // Log timeline event
+                await storage.createTimelineEvent({
+                  accountId: account.id,
+                  vendorId: vendor.id,
+                  eventType: 'reminder_sent',
+                  title: `COI expiry warning sent to ${vendor.name}`,
+                  description: `COI expiry warning sent via email (${daysUntilExpiry} days remaining)`,
+                  metadata: {
+                    docType: 'COI',
+                    channel: 'email',
+                    daysUntilExpiry,
+                  },
+                });
                 
                 if (vendor.phone) {
                   await smsService.sendCOIExpiryWarningSMS(vendor.id, daysUntilExpiry);
+                  
+                  // Log SMS timeline event
+                  await storage.createTimelineEvent({
+                    accountId: account.id,
+                    vendorId: vendor.id,
+                    eventType: 'reminder_sent',
+                    title: `COI expiry warning sent to ${vendor.name}`,
+                    description: `COI expiry warning sent via SMS (${daysUntilExpiry} days remaining)`,
+                    metadata: {
+                      docType: 'COI',
+                      channel: 'sms',
+                      daysUntilExpiry,
+                    },
+                  });
                 }
                 
                 eventBus.emit('coi.expiring', {
@@ -134,27 +218,59 @@ export class CronService {
                   vendorName: vendor.name,
                   daysUntilExpiry,
                 });
+                
+                logger.info(`COI expiry warning sent for ${vendor.name}`, {
+                  vendorId: vendor.id,
+                  daysUntilExpiry,
+                  accountId: account.id,
+                });
               }
               
               // Mark as expired if past expiry date
               if (daysUntilExpiry < 0 && vendor.coiStatus !== 'EXPIRED') {
                 await storage.updateVendor(vendor.id, { coiStatus: 'EXPIRED' });
                 
+                // Log expiry timeline event
+                await storage.createTimelineEvent({
+                  accountId: account.id,
+                  vendorId: vendor.id,
+                  eventType: 'coi_expired',
+                  title: `COI expired for ${vendor.name}`,
+                  description: 'Certificate of Insurance has expired',
+                  metadata: {
+                    docType: 'COI',
+                    channel: 'system',
+                    daysUntilExpiry,
+                    expiredDate: vendor.coiExpiry,
+                  },
+                });
+                
                 eventBus.emit('coi.expired', {
                   accountId: account.id,
                   vendorName: vendor.name,
+                });
+                
+                logger.warn(`COI expired for ${vendor.name}`, {
+                  vendorId: vendor.id,
+                  expiryDate: vendor.coiExpiry,
+                  accountId: account.id,
                 });
               }
             }
           }
         } catch (error) {
-          console.error(`Error checking COIs for account ${account.companyName}:`, error);
+          logger.error(`Error checking COIs for account ${account.companyName}`, { 
+            accountId: account.id,
+            error: error instanceof Error ? error.message : String(error)
+          });
         }
       }
       
-      console.log('COI expiry check completed');
+      logger.cron('coi-expiry-check', 'completed');
     } catch (error) {
-      console.error('Error in COI expiry check:', error);
+      logger.cron('coi-expiry-check', 'failed', { 
+        error: error instanceof Error ? error.message : String(error) 
+      });
     }
   }
 
@@ -168,34 +284,6 @@ export class CronService {
 
         const uploadLink = `https://${process.env.REPLIT_DOMAINS?.split(',')[0]}/upload/${vendor.id}`;
         
-        // Send W-9 reminder if missing
-        if (vendor.w9Status === 'MISSING' && vendor.email) {
-          try {
-            await emailService.sendW9Reminder(vendor.id, uploadLink);
-            
-            // Emit SSE event for reminder sent
-            eventBus.emit('reminder.sent', {
-              accountId,
-              vendorName: vendor.name,
-              docType: 'W9',
-              channel: 'email',
-            });
-            
-            // Also send SMS if phone available
-            if (vendor.phone) {
-              await smsService.sendW9ReminderSMS(vendor.id, uploadLink);
-              eventBus.emit('reminder.sent', {
-                accountId,
-                vendorName: vendor.name,
-                docType: 'W9',
-                channel: 'sms',
-              });
-            }
-          } catch (error) {
-            console.error(`Error sending W-9 reminder to ${vendor.name}:`, error);
-          }
-        }
-
         // Send COI reminder if missing or expiring
         if ((vendor.coiStatus === 'MISSING' || vendor.coiStatus === 'EXPIRED') && vendor.email) {
           try {

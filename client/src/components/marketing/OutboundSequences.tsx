@@ -15,14 +15,14 @@ const emailSequences = [
   {
     id: "email-1",
     title: "Pain + ROI Hook",
-    subject: "{{FirstName}}, you're leaving money on the table",
+    subject: "{{FirstName}}, is your company exposed to liability risk?",
     body: `Hi {{FirstName}},
 
-If even 2 vendors miss a W-9 or let their COI expire, it's not just a compliance headache—you could be losing $1,300+/month in missed early-payment discounts and penalty risk.
+If even 2 vendors let their Certificate of Insurance expire, your company could be exposed to serious liability risk—and you might not even know it.
 
-Pulsio automates W-9 and COI collection inside QuickBooks, so you stay compliant and capture the cash impact.
+Pulsio automates COI collection and validation, parses ACORD-25 forms instantly, and alerts you before coverage expires.
 
-Worth 15 minutes to see your "money at risk" in real time?
+Worth 15 minutes to see your current compliance gaps?
 
 [Book a Demo]
 
@@ -33,17 +33,17 @@ Founder, Pulsio`,
   {
     id: "email-2", 
     title: "Social Proof + Urgency",
-    subject: "How {{ContractorName}} hit 100% vendor compliance",
+    subject: "How {{ContractorName}} hit 100% COI compliance",
     body: `Hi {{FirstName}},
 
-{{ContractorName}}, a GC in {{Region}}, went from 62% to 100% vendor compliance in 30 days with Pulsio—without sending a single follow-up email.
+{{ContractorName}}, a GC in {{Region}}, went from 62% to 100% COI compliance in 30 days with Pulsio—without sending a single follow-up email.
 
 They now have:
-• All W-9s & COIs in one place
-• Auto-reminders for renewals
-• 100% visibility on money at risk vs. saved
+• All COIs parsed and validated automatically
+• Auto-reminders for upcoming expirations
+• 100% visibility on coverage gaps and compliance risks
 
-Want me to run your numbers? I can show you the exact ROI before you decide.
+Want me to run your numbers? I can show you exactly what's at risk in your current setup.
 
 — Phil`,
     timing: "Day 4"
@@ -54,13 +54,13 @@ const linkedInSequences = [
   {
     id: "linkedin-connection",
     title: "Connection Request",
-    content: `Hi {{FirstName}}, saw you manage AP/vendor compliance for {{Company}}. I help GCs using QuickBooks hit 100% vendor compliance while unlocking early-payment discounts. Let's connect.`,
+    content: `Hi {{FirstName}}, saw you manage vendor compliance for {{Company}}. I help contractors hit 100% COI compliance with automated ACORD-25 parsing and expiry tracking. Let's connect.`,
     timing: "Day 1"
   },
   {
     id: "linkedin-followup",
     title: "Follow-up Message",
-    content: `Hi {{FirstName}}, curious—how do you track W-9s and COIs today? I've built a QuickBooks-integrated tool that automates this and ties it directly to the cash impact. Happy to share a quick ROI snapshot.`,
+    content: `Hi {{FirstName}}, curious—how do you track COI expirations today? I've built a tool that automates ACORD-25 parsing, validates coverage limits, and alerts you before certificates expire. Happy to share a quick demo.`,
     timing: "Day 2"
   }
 ];
@@ -76,11 +76,11 @@ const objectionHandling = [
   },
   {
     objection: "We're on ServiceTitan/Buildertrend",
-    response: "Perfect! Those are excellent field management tools. Pulsio integrates with QuickBooks to handle the back-office compliance piece—W-9s, COIs, and payment discount tracking. It's designed to work alongside your existing field management system. Most customers see this as filling a gap rather than replacing anything."
+    response: "Perfect! Those are excellent field management tools. Pulsio focuses specifically on Certificate of Insurance compliance—automated ACORD-25 parsing, coverage validation, and expiry tracking. It's designed to work alongside your existing field management system. Most customers see this as filling a critical compliance gap."
   },
   {
-    objection: "We only collect W-9 once",
-    response: "You're right about W-9s, but COIs need annual renewal, and tracking early-payment discount eligibility changes with every bill. Plus, you'd be surprised how many W-9s get lost or become outdated when vendors change their business structure. Pulsio ensures you have everything current and tracks the financial impact. Want to see what's actually at risk in your current setup?"
+    objection: "We just check COIs manually",
+    response: "Manual checking works, but it's time-consuming and easy to miss expirations. With Pulsio, you get automatic ACORD-25 parsing, coverage validation against your requirements, and proactive expiry alerts. Most customers save 5-10 hours per week and eliminate the risk of working with uninsured vendors. Want to see how much time you could save?"
   }
 ];
 

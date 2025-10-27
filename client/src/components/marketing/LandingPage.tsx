@@ -6,6 +6,7 @@ import { useLocation } from "wouter";
 
 export default function LandingPage() {
   const [, navigate] = useLocation();
+  const isJobberMode = import.meta.env.VITE_FEATURE_JOBBER === 'true';
 
   const handleGetStarted = () => {
     navigate("/signup");
@@ -52,18 +53,18 @@ export default function LandingPage() {
       <section className="container mx-auto px-4 py-16 text-center">
         <div className="max-w-4xl mx-auto">
           <Badge className="mb-6 bg-green-100 text-green-800 hover:bg-green-100">
-            <TrendingUp className="w-4 h-4 mr-2" />
-            Save $5,000-$15,000 per year automatically
+            <Shield className="w-4 h-4 mr-2" />
+            Automated COI compliance and tracking
           </Badge>
           
           <h1 className="text-5xl font-bold mb-6 text-gray-900">
-            Stop Losing Money on 
-            <span className="text-blue-600"> Missing Documents</span>
+            Stop Working With 
+            <span className="text-blue-600"> Uninsured Vendors</span>
           </h1>
           
           <p className="text-xl text-gray-600 mb-8 max-w-2xl mx-auto">
-            Pulsio automatically collects W-9s and COIs from your vendors, 
-            so you never miss early payment discounts or risk IRS penalties again.
+            Pulsio automatically collects and validates Certificates of Insurance from your {isJobberMode ? 'clients' : 'vendors'}, 
+            so you never risk liability exposure from missing or expired coverage again.
           </p>
 
           <div className="flex flex-col sm:flex-row gap-4 justify-center mb-12">
@@ -81,7 +82,7 @@ export default function LandingPage() {
           <div className="flex items-center justify-center gap-8 text-sm text-gray-500">
             <div className="flex items-center gap-2">
               <CheckCircle className="w-4 h-4 text-green-600" />
-              <span>QuickBooks Certified</span>
+              <span>{isJobberMode ? 'Jobber Certified' : 'QuickBooks Certified'}</span>
             </div>
             <div className="flex items-center gap-2">
               <Shield className="w-4 h-4 text-blue-600" />
@@ -99,46 +100,46 @@ export default function LandingPage() {
       <section className="container mx-auto px-4 py-16 bg-gray-50">
         <div className="max-w-4xl mx-auto">
           <h2 className="text-3xl font-bold text-center mb-12 text-gray-900">
-            How Much Money Are You Losing?
+            What's Your Liability Risk?
           </h2>
           
           <div className="grid md:grid-cols-3 gap-8">
             <Card className="border-red-200 bg-red-50">
               <CardHeader>
                 <div className="flex items-center gap-2">
-                  <DollarSign className="w-6 h-6 text-red-600" />
-                  <CardTitle className="text-red-900">Lost Discounts</CardTitle>
+                  <AlertTriangle className="w-6 h-6 text-red-600" />
+                  <CardTitle className="text-red-900">Liability Exposure</CardTitle>
                 </div>
               </CardHeader>
               <CardContent>
-                <p className="text-2xl font-bold text-red-600 mb-2">2-3%</p>
-                <p className="text-red-700">Early payment discounts missed while waiting for missing W-9s</p>
+                <p className="text-2xl font-bold text-red-600 mb-2">$100K+</p>
+                <p className="text-red-700">Potential claims when working with uninsured or underinsured {isJobberMode ? 'clients' : 'vendors'}</p>
               </CardContent>
             </Card>
 
             <Card className="border-orange-200 bg-orange-50">
               <CardHeader>
                 <div className="flex items-center gap-2">
-                  <AlertTriangle className="w-6 h-6 text-orange-600" />
-                  <CardTitle className="text-orange-900">IRS Penalties</CardTitle>
+                  <Clock className="w-6 h-6 text-orange-600" />
+                  <CardTitle className="text-orange-900">Expired Coverage</CardTitle>
                 </div>
               </CardHeader>
               <CardContent>
-                <p className="text-2xl font-bold text-orange-600 mb-2">$330</p>
-                <p className="text-orange-700">Per incorrect 1099 when W-9 information is wrong or missing</p>
+                <p className="text-2xl font-bold text-orange-600 mb-2">30-40%</p>
+                <p className="text-orange-700">Of COIs expire without renewal, leaving you exposed to risk</p>
               </CardContent>
             </Card>
 
             <Card className="border-yellow-200 bg-yellow-50">
               <CardHeader>
                 <div className="flex items-center gap-2">
-                  <Clock className="w-6 h-6 text-yellow-600" />
-                  <CardTitle className="text-yellow-900">Wasted Time</CardTitle>
+                  <FileText className="w-6 h-6 text-yellow-600" />
+                  <CardTitle className="text-yellow-900">Manual Tracking</CardTitle>
                 </div>
               </CardHeader>
               <CardContent>
                 <p className="text-2xl font-bold text-yellow-600 mb-2">5-10 hrs</p>
-                <p className="text-yellow-700">Per month chasing vendors for documents and updating spreadsheets</p>
+                <p className="text-yellow-700">Per month chasing {isJobberMode ? 'clients' : 'vendors'} for COIs and updating spreadsheets</p>
               </CardContent>
             </Card>
           </div>
@@ -149,7 +150,7 @@ export default function LandingPage() {
       <section className="container mx-auto px-4 py-16">
         <div className="max-w-4xl mx-auto">
           <h2 className="text-3xl font-bold text-center mb-12 text-gray-900">
-            Automate Document Collection in 4 Simple Steps
+            Automate COI Compliance in 4 Simple Steps
           </h2>
           
           <div className="grid md:grid-cols-2 gap-8 items-center">
@@ -157,32 +158,32 @@ export default function LandingPage() {
               <div className="flex items-start gap-4">
                 <div className="bg-blue-100 text-blue-600 rounded-full w-8 h-8 flex items-center justify-center font-bold text-sm">1</div>
                 <div>
-                  <h3 className="font-semibold mb-2">Connect QuickBooks</h3>
-                  <p className="text-gray-600">One-click integration pulls all your vendor information automatically</p>
+                  <h3 className="font-semibold mb-2">Connect {isJobberMode ? 'Jobber' : 'QuickBooks'}</h3>
+                  <p className="text-gray-600">One-click integration pulls all your {isJobberMode ? 'client' : 'vendor'} information automatically</p>
                 </div>
               </div>
               
               <div className="flex items-start gap-4">
                 <div className="bg-blue-100 text-blue-600 rounded-full w-8 h-8 flex items-center justify-center font-bold text-sm">2</div>
                 <div>
-                  <h3 className="font-semibold mb-2">Set Reminder Preferences</h3>
-                  <p className="text-gray-600">Choose how often and when to send professional reminder emails and texts</p>
+                  <h3 className="font-semibold mb-2">Configure COI Requirements</h3>
+                  <p className="text-gray-600">Set minimum coverage limits for GL, Auto, Additional Insured, and Waiver requirements</p>
                 </div>
               </div>
               
               <div className="flex items-start gap-4">
                 <div className="bg-blue-100 text-blue-600 rounded-full w-8 h-8 flex items-center justify-center font-bold text-sm">3</div>
                 <div>
-                  <h3 className="font-semibold mb-2">Automatic Document Collection</h3>
-                  <p className="text-gray-600">Vendors receive secure links to upload W-9s and COIs directly</p>
+                  <h3 className="font-semibold mb-2">Automatic COI Collection</h3>
+                  <p className="text-gray-600">{isJobberMode ? 'Clients' : 'Vendors'} receive secure links to upload certificates with ACORD-25 parsing</p>
                 </div>
               </div>
               
               <div className="flex items-start gap-4">
                 <div className="bg-blue-100 text-blue-600 rounded-full w-8 h-8 flex items-center justify-center font-bold text-sm">4</div>
                 <div>
-                  <h3 className="font-semibold mb-2">Real-Time Dashboard</h3>
-                  <p className="text-gray-600">Track compliance, monitor savings, and never miss a discount again</p>
+                  <h3 className="font-semibold mb-2">Real-Time Compliance Dashboard</h3>
+                  <p className="text-gray-600">Track coverage limits, expiry dates, and violations with automated reminders</p>
                 </div>
               </div>
             </div>
@@ -190,29 +191,29 @@ export default function LandingPage() {
             <div className="bg-gray-100 p-8 rounded-lg">
               <div className="bg-white rounded-lg shadow-lg p-6">
                 <div className="flex items-center justify-between mb-4">
-                  <h4 className="font-semibold">Compliance Dashboard</h4>
+                  <h4 className="font-semibold">COI Compliance Dashboard</h4>
                   <Badge className="bg-green-100 text-green-800">Live Demo</Badge>
                 </div>
                 <div className="space-y-3 text-sm">
                   <div className="flex justify-between">
-                    <span>Total Vendors:</span>
+                    <span>Total {isJobberMode ? 'Clients' : 'Vendors'}:</span>
                     <span className="font-semibold">22</span>
                   </div>
                   <div className="flex justify-between">
                     <span>Compliant:</span>
-                    <span className="font-semibold text-green-600">8 (36%)</span>
+                    <span className="font-semibold text-green-600">14 (64%)</span>
                   </div>
                   <div className="flex justify-between">
-                    <span>Missing Documents:</span>
-                    <span className="font-semibold text-orange-600">18</span>
+                    <span>Missing COIs:</span>
+                    <span className="font-semibold text-red-600">5</span>
                   </div>
                   <div className="flex justify-between">
-                    <span>Money at Risk:</span>
-                    <span className="font-semibold text-red-600">$1,318</span>
+                    <span>Expiring Soon:</span>
+                    <span className="font-semibold text-orange-600">3</span>
                   </div>
                   <div className="flex justify-between">
                     <span>Reminders Sent:</span>
-                    <span className="font-semibold text-blue-600">6</span>
+                    <span className="font-semibold text-blue-600">12</span>
                   </div>
                 </div>
               </div>
@@ -225,7 +226,7 @@ export default function LandingPage() {
       <section className="container mx-auto px-4 py-16 bg-gray-50">
         <div className="max-w-6xl mx-auto">
           <h2 className="text-3xl font-bold text-center mb-12 text-gray-900">
-            Everything You Need for Vendor Compliance
+            Everything You Need for COI Compliance
           </h2>
           
           <div className="grid md:grid-cols-3 gap-8">
@@ -233,12 +234,12 @@ export default function LandingPage() {
               <CardHeader>
                 <div className="flex items-center gap-2">
                   <FileText className="w-6 h-6 text-blue-600" />
-                  <CardTitle>Smart Document Tracking</CardTitle>
+                  <CardTitle>ACORD-25 OCR Parsing</CardTitle>
                 </div>
               </CardHeader>
               <CardContent>
                 <CardDescription>
-                  Automatically track W-9s, COIs, and expiration dates. Get alerts before documents expire.
+                  Automatically extract coverage limits, expiry dates, and endorsements from uploaded certificates.
                 </CardDescription>
               </CardContent>
             </Card>
@@ -246,13 +247,13 @@ export default function LandingPage() {
             <Card>
               <CardHeader>
                 <div className="flex items-center gap-2">
-                  <Users className="w-6 h-6 text-green-600" />
-                  <CardTitle>Automated Reminders</CardTitle>
+                  <Shield className="w-6 h-6 text-green-600" />
+                  <CardTitle>Compliance Validation</CardTitle>
                 </div>
               </CardHeader>
               <CardContent>
                 <CardDescription>
-                  Professional email and SMS reminders sent automatically. Customizable templates and schedules.
+                  Validate GL/Auto coverage minimums, Additional Insured, and Waiver of Subrogation requirements automatically.
                 </CardDescription>
               </CardContent>
             </Card>
@@ -260,13 +261,13 @@ export default function LandingPage() {
             <Card>
               <CardHeader>
                 <div className="flex items-center gap-2">
-                  <TrendingUp className="w-6 h-6 text-purple-600" />
-                  <CardTitle>ROI Tracking</CardTitle>
+                  <Clock className="w-6 h-6 text-purple-600" />
+                  <CardTitle>Expiry Reminders</CardTitle>
                 </div>
               </CardHeader>
               <CardContent>
                 <CardDescription>
-                  See exactly how much money you're saving from captured discounts and avoided penalties.
+                  Customizable reminders at 30/14/7 days before expiration. Email and SMS notifications.
                 </CardDescription>
               </CardContent>
             </Card>
@@ -275,12 +276,12 @@ export default function LandingPage() {
               <CardHeader>
                 <div className="flex items-center gap-2">
                   <Shield className="w-6 h-6 text-indigo-600" />
-                  <CardTitle>QuickBooks Integration</CardTitle>
+                  <CardTitle>{isJobberMode ? 'Jobber Integration' : 'QuickBooks Integration'}</CardTitle>
                 </div>
               </CardHeader>
               <CardContent>
                 <CardDescription>
-                  Seamless sync with your existing accounting workflow. No duplicate data entry required.
+                  Seamless sync with your existing {isJobberMode ? 'field service' : 'accounting'} workflow. No duplicate data entry required.
                 </CardDescription>
               </CardContent>
             </Card>
@@ -288,13 +289,13 @@ export default function LandingPage() {
             <Card>
               <CardHeader>
                 <div className="flex items-center gap-2">
-                  <Clock className="w-6 h-6 text-orange-600" />
-                  <CardTitle>Real-Time Updates</CardTitle>
+                  <CheckCircle className="w-6 h-6 text-orange-600" />
+                  <CardTitle>Real-Time Dashboard</CardTitle>
                 </div>
               </CardHeader>
               <CardContent>
                 <CardDescription>
-                  Live dashboard shows document uploads, payment eligibility, and compliance status instantly.
+                  Live dashboard shows COI uploads, compliance status, and expiry tracking instantly.
                 </CardDescription>
               </CardContent>
             </Card>
@@ -302,13 +303,13 @@ export default function LandingPage() {
             <Card>
               <CardHeader>
                 <div className="flex items-center gap-2">
-                  <DollarSign className="w-6 h-6 text-red-600" />
-                  <CardTitle>Early Payment Alerts</CardTitle>
+                  <AlertTriangle className="w-6 h-6 text-red-600" />
+                  <CardTitle>Compliance Reporting</CardTitle>
                 </div>
               </CardHeader>
               <CardContent>
                 <CardDescription>
-                  Never miss another discount. Get notified the moment all documents are ready for payment.
+                  Generate PDF snapshots with violations, coverage details, and compliance status for audits.
                 </CardDescription>
               </CardContent>
             </Card>
@@ -345,7 +346,7 @@ export default function LandingPage() {
                 </div>
                 <div className="flex items-center gap-2">
                   <CheckCircle className="w-4 h-4 text-green-600" />
-                  <span className="text-sm">QuickBooks sync</span>
+                  <span className="text-sm">{isJobberMode ? 'Jobber sync' : 'QuickBooks sync'}</span>
                 </div>
                 <Button className="w-full mt-6" variant="outline">Choose Plan</Button>
               </CardContent>
@@ -425,10 +426,10 @@ export default function LandingPage() {
       <section className="container mx-auto px-4 py-16 bg-blue-600 text-white">
         <div className="max-w-4xl mx-auto text-center">
           <h2 className="text-3xl font-bold mb-6">
-            Ready to Stop Losing Money on Missing Documents?
+            Ready to Protect Your Business from Liability Risk?
           </h2>
           <p className="text-xl mb-8 text-blue-100">
-            Join contractors who are saving $5,000-$15,000 per year with automated compliance.
+            Join {isJobberMode ? 'field service professionals' : 'contractors'} who are automating COI compliance and eliminating coverage gaps.
           </p>
           <div className="flex flex-col sm:flex-row gap-4 justify-center">
             <Button size="lg" onClick={handleGetStarted} className="bg-white text-blue-600 hover:bg-gray-100">

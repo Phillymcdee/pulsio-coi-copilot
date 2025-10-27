@@ -4,9 +4,9 @@ import { useToast } from "@/hooks/use-toast";
 import { isUnauthorizedError } from "@/lib/authUtils";
 import { Navigation } from "@/components/layout/Navigation";
 import { StatsBar } from "@/components/dashboard/StatsBar";
-import { MissingDocsCard } from "@/components/dashboard/MissingDocsCard";
-import { MoneyAtRiskCard } from "@/components/dashboard/MoneyAtRiskCard";
-import { RiskMeterCard } from "@/components/dashboard/RiskMeterCard";
+import { MissingCOIsCard } from "@/components/dashboard/MissingCOIsCard";
+import { ExpiringCOIsCard } from "@/components/dashboard/ExpiringCOIsCard";
+import { JobsAtRiskCard } from "@/components/dashboard/JobsAtRiskCard";
 import { Timeline } from "@/components/dashboard/Timeline";
 
 export default function Dashboard() {
@@ -48,9 +48,9 @@ export default function Dashboard() {
 
         {/* Dashboard Cards Grid */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
-          <MissingDocsCard />
-          <MoneyAtRiskCard />
-          <RiskMeterCard />
+          <MissingCOIsCard />
+          <ExpiringCOIsCard />
+          <JobsAtRiskCard />
         </div>
 
         {/* Live Activity Timeline */}

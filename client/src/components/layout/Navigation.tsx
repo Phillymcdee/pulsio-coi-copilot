@@ -36,6 +36,7 @@ interface DashboardStats {
 export function Navigation() {
   const { user } = useAuth();
   const [location] = useLocation();
+  const isJobberMode = import.meta.env.VITE_FEATURE_JOBBER === 'true';
 
   const { data: account } = useQuery({
     queryKey: ["/api/account"],
@@ -52,7 +53,7 @@ export function Navigation() {
     return location.startsWith(path);
   };
 
-  const navItems = [
+  const allNavItems = [
     {
       href: "/dashboard",
       label: "Dashboard",
@@ -67,6 +68,7 @@ export function Navigation() {
       href: "/bills",
       label: "Bills",
       icon: FileText,
+      showInJobberMode: false, // Hide in Jobber mode
     },
     {
       href: "/settings",
@@ -74,6 +76,12 @@ export function Navigation() {
       icon: Settings,
     },
   ];
+
+  // Filter nav items based on feature flags
+  const navItems = allNavItems.filter(item => 
+    item.showInJobberMode === undefined || 
+    (!isJobberMode || item.showInJobberMode)
+  );
 
   return (
     <nav className="bg-white shadow-sm border-b border-gray-200 sticky top-0 z-50">

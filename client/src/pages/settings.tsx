@@ -14,6 +14,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Separator } from "@/components/ui/separator";
 import { Badge } from "@/components/ui/badge";
+import { Checkbox } from "@/components/ui/checkbox";
 import { useForm } from "react-hook-form";
 import { 
   Settings as SettingsIcon, 
@@ -24,13 +25,15 @@ import {
   Save,
   Loader2,
   CheckCircle,
-  ExternalLink
+  ExternalLink,
+  Shield
 } from "lucide-react";
 
 export default function Settings() {
   const { toast } = useToast();
   const { isAuthenticated, isLoading } = useAuth();
   const queryClient = useQueryClient();
+  const isJobberMode = import.meta.env.VITE_FEATURE_JOBBER === 'true';
 
   // Redirect to login if not authenticated
   useEffect(() => {
@@ -62,17 +65,28 @@ export default function Settings() {
       reminderCadence: '0 9 * * *',
       emailTemplate: '',
       smsTemplate: '',
+      minGL: 1000000,
+      minAuto: 1000000,
+      requireAdditionalInsured: true,
+      requireWaiver: true,
+      expiryWarningDays: '30,14,7',
     }
   });
 
   // Reset form when account data loads
   useEffect(() => {
     if (account) {
+      const coiRules = (account as any).coiRules || {};
       reset({
         companyName: (account as any).companyName || '',
         reminderCadence: (account as any).reminderCadence || '0 9 * * *',
         emailTemplate: (account as any).emailTemplate || '',
         smsTemplate: (account as any).smsTemplate || '',
+        minGL: coiRules.minGL || 1000000,
+        minAuto: coiRules.minAuto || 1000000,
+        requireAdditionalInsured: coiRules.requireAdditionalInsured !== undefined ? coiRules.requireAdditionalInsured : true,
+        requireWaiver: coiRules.requireWaiver !== undefined ? coiRules.requireWaiver : true,
+        expiryWarningDays: coiRules.expiryWarningDays ? coiRules.expiryWarningDays.join(',') : '30,14,7',
       });
     }
   }, [account, reset]);
@@ -145,7 +159,9 @@ export default function Settings() {
     onSuccess: () => {
       toast({
         title: "Sync Started",
-        description: "QuickBooks sync has been initiated. Check the dashboard for updates.",
+        description: isJobberMode 
+          ? "Jobber sync has been initiated. Check the dashboard for updates."
+          : "QuickBooks sync has been initiated. Check the dashboard for updates.",
       });
     },
     onError: (error) => {
@@ -157,8 +173,65 @@ export default function Settings() {
     },
   });
 
+  const connectJobberMutation = useMutation({
+    mutationFn: async () => {
+      const response = await apiRequest("GET", "/api/jobber/auth-url");
+      return response.json();
+    },
+    onSuccess: (data) => {
+      // Redirect to Jobber OAuth page
+      window.location.href = data.authUrl;
+    },
+    onError: (error) => {
+      toast({
+        title: "Error",
+        description: "Failed to connect to Jobber. Please try again.",
+        variant: "destructive",
+      });
+    },
+  });
+
+  const jobberSyncMutation = useMutation({
+    mutationFn: async () => {
+      const response = await apiRequest("POST", "/api/jobber/sync");
+      return response.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/account"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/vendors"] });
+      toast({
+        title: "Sync Started",
+        description: "Jobber clients are being synced. Check the dashboard for updates.",
+      });
+    },
+    onError: (error) => {
+      toast({
+        title: "Error",
+        description: "Failed to sync Jobber clients. Please try again.",
+        variant: "destructive",
+      });
+    },
+  });
+
   const onSubmit = (data: any) => {
-    updateAccountMutation.mutate(data);
+    // Extract COI rules fields to avoid sending them at top level
+    const { minGL, minAuto, requireAdditionalInsured, requireWaiver, expiryWarningDays, ...otherFields } = data;
+    
+    // Transform COI rules data before sending
+    const payload = {
+      ...otherFields,
+      coiRules: {
+        minGL: parseInt(minGL) || 1000000,
+        minAuto: parseInt(minAuto) || 1000000,
+        requireAdditionalInsured,
+        requireWaiver,
+        expiryWarningDays: expiryWarningDays
+          .split(',')
+          .map((d: string) => parseInt(d.trim()))
+          .filter((d: number) => !isNaN(d)),
+      },
+    };
+    updateAccountMutation.mutate(payload);
   };
 
   if (isLoading || !isAuthenticated) {
@@ -311,14 +384,14 @@ export default function Settings() {
                   <div className="mb-3 p-4 bg-gray-50 rounded-lg border">
                     <p className="font-medium text-gray-700 mb-2">Default Email Template:</p>
                     <div className="bg-white p-3 rounded border text-sm space-y-2">
-                      <p><strong>Subject:</strong> W-9 Form Required - {'{{company_name}}'}</p>
+                      <p><strong>Subject:</strong> Certificate of Insurance Required - {'{{company_name}}'}</p>
                       <div className="border-t pt-2 space-y-2 text-gray-700">
-                        <h3 className="text-lg font-semibold text-blue-600">W-9 Form Required</h3>
+                        <h3 className="text-lg font-semibold text-blue-600">Certificate of Insurance Required</h3>
                         <p>Hello <span className="bg-yellow-100 px-1 rounded">{'{{vendor_name}}'}</span>,</p>
-                        <p>We need your completed W-9 form for our records. This is required for tax reporting purposes.</p>
+                        <p>We need your current Certificate of Insurance (COI) for our records. This is required for compliance purposes.</p>
                         <div className="my-4">
                           <span className="bg-blue-600 text-white px-4 py-2 rounded inline-block text-sm">
-                            Upload W-9 Form
+                            Upload Certificate
                           </span>
                         </div>
                         <p>If you have any questions, please don't hesitate to contact us.</p>
@@ -349,9 +422,9 @@ export default function Settings() {
                   <div className="mb-3 p-4 bg-gray-50 rounded-lg border">
                     <p className="font-medium text-gray-700 mb-2">Default SMS Template:</p>
                     <div className="bg-white p-3 rounded border text-sm font-mono">
-                      Hi <span className="bg-yellow-100 px-1 rounded">{'{{vendor_name}}'}</span>, we need your W-9 form for tax reporting. Please upload it here: <span className="bg-yellow-100 px-1 rounded">{'{{upload_link}}'}</span> - <span className="bg-yellow-100 px-1 rounded">{'{{company_name}}'}</span>
+                      Hi <span className="bg-yellow-100 px-1 rounded">{'{{vendor_name}}'}</span>, we need your Certificate of Insurance. Please upload it here: <span className="bg-yellow-100 px-1 rounded">{'{{upload_link}}'}</span> - <span className="bg-yellow-100 px-1 rounded">{'{{company_name}}'}</span>
                     </div>
-                    <p className="text-xs text-gray-500 mt-2">156 characters (within 160 SMS limit)</p>
+                    <p className="text-xs text-gray-500 mt-2">147 characters (within 160 SMS limit)</p>
                   </div>
                   
                   <Textarea
@@ -383,55 +456,266 @@ export default function Settings() {
             </CardContent>
           </Card>
 
-          {/* QuickBooks Integration */}
-          <Card>
+          {/* COI Rules Configuration */}
+          <Card data-testid="card-coi-rules">
             <CardHeader>
-              <CardTitle>QuickBooks Integration</CardTitle>
+              <CardTitle className="flex items-center space-x-2">
+                <Shield className="w-5 h-5" />
+                <span>COI Compliance Rules</span>
+              </CardTitle>
             </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="flex items-center justify-between">
-                <div>
-                  <div className="font-medium">Connection Status</div>
-                  <div className="text-sm text-gray-600">
-                    {(account as any)?.qboAccessToken ? 'Connected and syncing' : 'Not connected'}
+            <CardContent>
+              <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
+                <div className="space-y-4">
+                  <div>
+                    <Label className="text-base font-medium">Coverage Minimums</Label>
+                    <p className="text-sm text-gray-600 mb-4">
+                      Set minimum required coverage amounts for General Liability and Auto Liability insurance.
+                    </p>
+                    
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div>
+                        <Label htmlFor="minGL">General Liability Minimum</Label>
+                        <div className="relative mt-1">
+                          <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500">$</span>
+                          <Input
+                            id="minGL"
+                            type="number"
+                            {...register("minGL")}
+                            className="pl-7"
+                            placeholder="1000000"
+                            data-testid="input-min-gl"
+                          />
+                        </div>
+                        <p className="text-xs text-gray-500 mt-1">
+                          Default: $1,000,000 ($1M)
+                        </p>
+                      </div>
+                      
+                      <div>
+                        <Label htmlFor="minAuto">Auto Liability Minimum</Label>
+                        <div className="relative mt-1">
+                          <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500">$</span>
+                          <Input
+                            id="minAuto"
+                            type="number"
+                            {...register("minAuto")}
+                            className="pl-7"
+                            placeholder="1000000"
+                            data-testid="input-min-auto"
+                          />
+                        </div>
+                        <p className="text-xs text-gray-500 mt-1">
+                          Default: $1,000,000 ($1M)
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+
+                  <Separator />
+
+                  <div>
+                    <Label className="text-base font-medium">Required Endorsements</Label>
+                    <p className="text-sm text-gray-600 mb-4">
+                      Specify which endorsements must be present on COI documents.
+                    </p>
+                    
+                    <div className="space-y-3">
+                      <div className="flex items-center space-x-2">
+                        <Checkbox
+                          id="requireAdditionalInsured"
+                          checked={watch("requireAdditionalInsured")}
+                          onCheckedChange={(checked) => setValue("requireAdditionalInsured", checked as boolean)}
+                          data-testid="checkbox-require-additional-insured"
+                        />
+                        <Label htmlFor="requireAdditionalInsured" className="text-sm font-normal cursor-pointer">
+                          Require Additional Insured endorsement
+                        </Label>
+                      </div>
+                      
+                      <div className="flex items-center space-x-2">
+                        <Checkbox
+                          id="requireWaiver"
+                          checked={watch("requireWaiver")}
+                          onCheckedChange={(checked) => setValue("requireWaiver", checked as boolean)}
+                          data-testid="checkbox-require-waiver"
+                        />
+                        <Label htmlFor="requireWaiver" className="text-sm font-normal cursor-pointer">
+                          Require Waiver of Subrogation endorsement
+                        </Label>
+                      </div>
+                    </div>
+                  </div>
+
+                  <Separator />
+
+                  <div>
+                    <Label htmlFor="expiryWarningDays" className="text-base font-medium">
+                      Expiry Reminder Schedule
+                    </Label>
+                    <p className="text-sm text-gray-600 mb-4">
+                      Days before expiry to send reminders (comma-separated). For example: 30,14,7
+                    </p>
+                    <Input
+                      id="expiryWarningDays"
+                      {...register("expiryWarningDays")}
+                      placeholder="30,14,7"
+                      className="mt-1"
+                      data-testid="input-expiry-warning-days"
+                    />
+                    <p className="text-xs text-gray-500 mt-1">
+                      Reminders will be sent at {watch("expiryWarningDays") || '30,14,7'} days before COI expiration
+                    </p>
                   </div>
                 </div>
-                <div className="flex items-center space-x-2">
-                  {(account as any)?.qboAccessToken ? (
-                    <Badge variant="secondary" className="text-green-700 bg-green-50">
-                      <CheckCircle className="w-3 h-3 mr-1" />
-                      Connected
-                    </Badge>
-                  ) : (
-                    <Badge variant="secondary" className="text-red-700 bg-red-50">
-                      Not Connected
-                    </Badge>
-                  )}
-                </div>
-              </div>
-              
-              {(account as any)?.qboAccessToken && (
-                <div className="flex items-center space-x-2">
+
+                <div className="flex justify-end">
                   <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => manualSyncMutation.mutate()}
-                    disabled={manualSyncMutation.isPending}
+                    type="submit"
+                    disabled={updateAccountMutation.isPending}
+                    data-testid="button-save-coi-rules"
                   >
-                    {manualSyncMutation.isPending ? (
+                    {updateAccountMutation.isPending ? (
                       <Loader2 className="w-4 h-4 mr-2 animate-spin" />
                     ) : (
-                      <CheckCircle className="w-4 h-4 mr-2" />
+                      <Save className="w-4 h-4 mr-2" />
                     )}
-                    Sync Now
+                    Save Rules
                   </Button>
-                  <p className="text-sm text-gray-500">
-                    Last sync: {(account as any)?.updatedAt ? formatDistanceToNow(new Date((account as any).updatedAt), { addSuffix: true }) : 'Never'}
-                  </p>
                 </div>
-              )}
+              </form>
             </CardContent>
           </Card>
+
+          {/* QuickBooks Integration - Hide in Jobber mode */}
+          {!isJobberMode && (
+            <Card>
+              <CardHeader>
+                <CardTitle>QuickBooks Integration</CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <div className="font-medium">Connection Status</div>
+                    <div className="text-sm text-gray-600">
+                      {(account as any)?.qboAccessToken ? 'Connected and syncing' : 'Not connected'}
+                    </div>
+                  </div>
+                  <div className="flex items-center space-x-2">
+                    {(account as any)?.qboAccessToken ? (
+                      <Badge variant="secondary" className="text-green-700 bg-green-50">
+                        <CheckCircle className="w-3 h-3 mr-1" />
+                        Connected
+                      </Badge>
+                    ) : (
+                      <Badge variant="secondary" className="text-red-700 bg-red-50">
+                        Not Connected
+                      </Badge>
+                    )}
+                  </div>
+                </div>
+                
+                {(account as any)?.qboAccessToken && (
+                  <div className="flex items-center space-x-2">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => manualSyncMutation.mutate()}
+                      disabled={manualSyncMutation.isPending}
+                    >
+                      {manualSyncMutation.isPending ? (
+                        <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                      ) : (
+                        <CheckCircle className="w-4 h-4 mr-2" />
+                      )}
+                      Sync Now
+                    </Button>
+                    <p className="text-sm text-gray-500">
+                      Last sync: {(account as any)?.updatedAt ? formatDistanceToNow(new Date((account as any).updatedAt), { addSuffix: true }) : 'Never'}
+                    </p>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          )}
+
+          {/* Jobber Integration - Show in Jobber mode */}
+          {isJobberMode && (
+            <Card>
+              <CardHeader>
+                <CardTitle>Jobber Integration</CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <div className="font-medium">Connection Status</div>
+                    <div className="text-sm text-gray-600">
+                      {(account as any)?.jobberAccessToken ? 'Connected and syncing' : 'Not connected'}
+                    </div>
+                  </div>
+                  <div className="flex items-center space-x-2">
+                    {(account as any)?.jobberAccessToken ? (
+                      <Badge variant="secondary" className="text-green-700 bg-green-50">
+                        <CheckCircle className="w-3 h-3 mr-1" />
+                        Connected
+                      </Badge>
+                    ) : (
+                      <Badge variant="secondary" className="text-red-700 bg-red-50">
+                        Not Connected
+                      </Badge>
+                    )}
+                  </div>
+                </div>
+                
+                {(account as any)?.jobberAccessToken ? (
+                  <div className="flex flex-col space-y-3">
+                    <div className="flex items-center space-x-2">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => jobberSyncMutation.mutate()}
+                        disabled={jobberSyncMutation.isPending}
+                        data-testid="button-sync-jobber"
+                      >
+                        {jobberSyncMutation.isPending ? (
+                          <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                        ) : (
+                          <CheckCircle className="w-4 h-4 mr-2" />
+                        )}
+                        Sync Now
+                      </Button>
+                      <p className="text-sm text-gray-500">
+                        Last sync: {(account as any)?.updatedAt ? formatDistanceToNow(new Date((account as any).updatedAt), { addSuffix: true }) : 'Never'}
+                      </p>
+                    </div>
+                    <p className="text-sm text-gray-500">
+                      Syncing clients automatically. You can also trigger a manual sync anytime.
+                    </p>
+                  </div>
+                ) : (
+                  <div className="flex flex-col space-y-3">
+                    <Button
+                      variant="default"
+                      size="sm"
+                      onClick={() => connectJobberMutation.mutate()}
+                      disabled={connectJobberMutation.isPending}
+                      data-testid="button-connect-jobber"
+                    >
+                      {connectJobberMutation.isPending ? (
+                        <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                      ) : (
+                        <ExternalLink className="w-4 h-4 mr-2" />
+                      )}
+                      Connect to Jobber
+                    </Button>
+                    <p className="text-sm text-gray-500">
+                      Connect your Jobber account to automatically sync clients and track their Certificate of Insurance compliance.
+                    </p>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          )}
 
           {/* Billing & Subscription */}
           <Card>

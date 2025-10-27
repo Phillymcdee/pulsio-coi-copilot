@@ -13,8 +13,11 @@ export function StatsBar() {
   const [showMissingDocs, setShowMissingDocs] = useState(false);
   const [showExpiringCOIs, setShowExpiringCOIs] = useState(false);
   
+  // Detect feature mode
+  const isJobberMode = import.meta.env.VITE_FEATURE_JOBBER === 'true';
+  
   const { data: stats, isLoading } = useQuery({
-    queryKey: ["/api/dashboard/stats"],
+    queryKey: ["/api/dashboard/compliance-stats"],
   });
 
   const { data: account } = useQuery({
@@ -23,22 +26,25 @@ export function StatsBar() {
 
   const syncMutation = useMutation({
     mutationFn: async () => {
-      const response = await apiRequest("POST", "/api/qbo/sync");
+      const endpoint = isJobberMode ? "/api/jobber/sync" : "/api/qbo/sync";
+      const response = await apiRequest("POST", endpoint);
       return response.json();
     },
     onSuccess: (data) => {
-      queryClient.invalidateQueries({ queryKey: ["/api/dashboard/stats"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/dashboard/compliance-stats"] });
       queryClient.invalidateQueries({ queryKey: ["/api/vendors"] });
       queryClient.invalidateQueries({ queryKey: ["/api/timeline"] });
+      const source = isJobberMode ? "Jobber" : "QuickBooks";
       toast({
         title: "Sync Complete",
-        description: `Successfully synced ${data.vendorCount} vendors from QuickBooks`,
+        description: `Successfully synced ${data.vendorCount || data.clientCount || 0} ${isJobberMode ? 'clients' : 'vendors'} from ${source}`,
       });
     },
     onError: (error: any) => {
+      const source = isJobberMode ? "Jobber" : "QuickBooks";
       toast({
         title: "Sync Failed",
-        description: error.message || "Failed to sync QuickBooks data",
+        description: error.message || `Failed to sync ${source} data`,
         variant: "destructive",
       });
     },
@@ -62,32 +68,60 @@ export function StatsBar() {
         <div className="flex items-center justify-between mb-4">
           <h2 className="text-lg font-semibold text-gray-900">Account Overview</h2>
           <div className="flex items-center space-x-3">
-            {(account as any)?.qboAccessToken && (
-              <>
-                <div className="flex items-center space-x-2 text-sm text-green-600">
-                  <CheckCircle className="w-4 h-4" />
-                  <span>QBO connected</span>
-                </div>
-                <Button
-                  onClick={() => syncMutation.mutate()}
-                  disabled={syncMutation.isPending}
-                  size="sm"
-                  variant="outline"
-                >
-                  {syncMutation.isPending ? (
-                    <Loader2 className="w-4 h-4 animate-spin mr-2" />
-                  ) : (
-                    <RefreshCw className="w-4 h-4 mr-2" />
-                  )}
-                  Sync Now
-                </Button>
-              </>
+            {isJobberMode ? (
+              // Jobber mode - show Jobber connection status
+              (account as any)?.jobberAccessToken && (
+                <>
+                  <div className="flex items-center space-x-2 text-sm text-green-600" data-testid="text-jobber-connected">
+                    <CheckCircle className="w-4 h-4" />
+                    <span>Jobber connected</span>
+                  </div>
+                  <Button
+                    onClick={() => syncMutation.mutate()}
+                    disabled={syncMutation.isPending}
+                    size="sm"
+                    variant="outline"
+                    data-testid="button-sync-jobber-dashboard"
+                  >
+                    {syncMutation.isPending ? (
+                      <Loader2 className="w-4 h-4 animate-spin mr-2" />
+                    ) : (
+                      <RefreshCw className="w-4 h-4 mr-2" />
+                    )}
+                    Sync Now
+                  </Button>
+                </>
+              )
+            ) : (
+              // QBO mode - show QuickBooks connection status
+              (account as any)?.qboAccessToken && (
+                <>
+                  <div className="flex items-center space-x-2 text-sm text-green-600" data-testid="text-qbo-connected">
+                    <CheckCircle className="w-4 h-4" />
+                    <span>QBO connected</span>
+                  </div>
+                  <Button
+                    onClick={() => syncMutation.mutate()}
+                    disabled={syncMutation.isPending}
+                    size="sm"
+                    variant="outline"
+                    data-testid="button-sync-qbo-dashboard"
+                  >
+                    {syncMutation.isPending ? (
+                      <Loader2 className="w-4 h-4 animate-spin mr-2" />
+                    ) : (
+                      <RefreshCw className="w-4 h-4 mr-2" />
+                    )}
+                    Sync Now
+                  </Button>
+                </>
+              )
             )}
           </div>
         </div>
         
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
-          <div className="text-center">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+          <div className="text-center" data-testid="stat-compliance">
             <div className="flex items-center justify-center space-x-2 mb-1">
               <Users className="w-5 h-5 text-blue-600" />
               <div className="text-2xl font-bold text-blue-600">
@@ -102,14 +136,14 @@ export function StatsBar() {
           
           <Dialog open={showMissingDocs} onOpenChange={setShowMissingDocs}>
             <DialogTrigger asChild>
-              <div className="text-center cursor-pointer hover:bg-gray-50 p-2 rounded-lg transition-colors">
+              <div className="text-center cursor-pointer hover:bg-gray-50 p-2 rounded-lg transition-colors" data-testid="stat-missing-cois">
                 <div className="flex items-center justify-center space-x-2 mb-1">
                   <FileX className="w-5 h-5 text-red-600" />
                   <div className="text-2xl font-bold text-red-600">
-                    {(stats as any)?.missingDocsCount || 0}
+                    {(stats as any)?.missingCOIs?.length || 0}
                   </div>
                 </div>
-                <div className="text-sm text-gray-600">Missing Documents</div>
+                <div className="text-sm text-gray-600">Missing COIs</div>
                 <div className="text-xs text-gray-500 mt-1">
                   Click to view details
                 </div>
@@ -117,17 +151,17 @@ export function StatsBar() {
             </DialogTrigger>
             <DialogContent className="max-w-md">
               <DialogHeader>
-                <DialogTitle>Missing Documents</DialogTitle>
+                <DialogTitle>Missing COIs</DialogTitle>
               </DialogHeader>
               <div className="space-y-3">
-                {(stats as any)?.missingDocs?.length === 0 ? (
-                  <p className="text-green-600">All required documents have been collected!</p>
+                {!(stats as any)?.missingCOIs || (stats as any)?.missingCOIs?.length === 0 ? (
+                  <p className="text-green-600">All COIs have been collected!</p>
                 ) : (
-                  (stats as any)?.missingDocs?.map((doc: any, index: number) => (
+                  (stats as any)?.missingCOIs?.map((vendor: any, index: number) => (
                     <div key={index} className="flex items-center justify-between p-3 bg-red-50 rounded-lg">
                       <div>
-                        <div className="font-medium text-gray-900">{doc.vendorName}</div>
-                        <div className="text-sm text-red-600">Missing {doc.docType}</div>
+                        <div className="font-medium text-gray-900">{vendor.vendorName || vendor.name}</div>
+                        <div className="text-sm text-red-600">Missing COI</div>
                       </div>
                       <FileX className="w-4 h-4 text-red-500" />
                     </div>
@@ -139,11 +173,11 @@ export function StatsBar() {
           
           <Dialog open={showExpiringCOIs} onOpenChange={setShowExpiringCOIs}>
             <DialogTrigger asChild>
-              <div className="text-center cursor-pointer hover:bg-gray-50 p-2 rounded-lg transition-colors">
+              <div className="text-center cursor-pointer hover:bg-gray-50 p-2 rounded-lg transition-colors" data-testid="stat-expiring-cois">
                 <div className="flex items-center justify-center space-x-2 mb-1">
                   <Clock className="w-5 h-5 text-amber-600" />
                   <div className="text-2xl font-bold text-amber-600">
-                    {(stats as any)?.expiringCOIsCount || 0}
+                    {(stats as any)?.expiringCOIs?.length || 0}
                   </div>
                 </div>
                 <div className="text-sm text-gray-600">Expiring COIs</div>
@@ -157,13 +191,13 @@ export function StatsBar() {
                 <DialogTitle>Expiring COIs</DialogTitle>
               </DialogHeader>
               <div className="space-y-3">
-                {(stats as any)?.expiringCOIs?.length === 0 ? (
+                {!(stats as any)?.expiringCOIs || (stats as any)?.expiringCOIs?.length === 0 ? (
                   <p className="text-green-600">No COIs expiring in the next 30 days!</p>
                 ) : (
                   (stats as any)?.expiringCOIs?.map((coi: any, index: number) => (
                     <div key={index} className="flex items-center justify-between p-3 bg-amber-50 rounded-lg">
                       <div>
-                        <div className="font-medium text-gray-900">{coi.vendorName}</div>
+                        <div className="font-medium text-gray-900">{coi.vendorName || coi.name}</div>
                         <div className="text-sm text-amber-600">
                           Expires in {coi.daysUntilExpiry} days
                         </div>
@@ -175,19 +209,6 @@ export function StatsBar() {
               </div>
             </DialogContent>
           </Dialog>
-          
-          <div className="text-center">
-            <div className="flex items-center justify-center space-x-2 mb-1">
-              <AlertTriangle className="w-5 h-5 text-red-600" />
-              <div className="text-2xl font-bold text-red-600">
-                ${(stats as any)?.moneyAtRisk?.toLocaleString() || '0'}
-              </div>
-            </div>
-            <div className="text-sm text-gray-600">Money at Risk</div>
-            <div className="text-xs text-gray-500 mt-1">
-              Early pay discounts
-            </div>
-          </div>
         </div>
       </CardContent>
     </Card>

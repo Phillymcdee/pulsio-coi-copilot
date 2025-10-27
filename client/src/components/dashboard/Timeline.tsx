@@ -55,19 +55,25 @@ export function Timeline() {
   });
 
   const { events: sseEvents, isConnected } = useSSE("/api/events");
+  
+  const isJobberMode = import.meta.env.VITE_FEATURE_JOBBER === 'true';
 
-  // Combine timeline events with SSE events
+  // Combine timeline events with SSE events, filtering QBO events in Jobber mode
   const allEvents = [
-    ...(sseEvents || []),
-    ...((timelineEvents as any[]) || []).map((event: any) => ({
-      ...event,
-      timestamp: new Date(event.createdAt).getTime(),
-      data: {
-        eventType: event.eventType,
-        message: event.description,
-        title: event.title,
-      }
-    }))
+    ...(sseEvents || []).filter((event: any) => 
+      !isJobberMode || event.data?.eventType !== 'qbo_sync'
+    ),
+    ...((timelineEvents as any[]) || [])
+      .filter((event: any) => !isJobberMode || event.eventType !== 'qbo_sync')
+      .map((event: any) => ({
+        ...event,
+        timestamp: new Date(event.createdAt).getTime(),
+        data: {
+          eventType: event.eventType,
+          message: event.description,
+          title: event.title,
+        }
+      }))
   ].sort((a, b) => b.timestamp - a.timestamp);
 
   if (isLoading) {

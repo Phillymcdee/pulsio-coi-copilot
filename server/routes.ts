@@ -4,6 +4,7 @@ import { createServer, type Server } from "http";
 import { storage } from "./storage";
 import { setupAuth, isAuthenticated } from "./replitAuth";
 import { quickbooksService } from "./services/quickbooks";
+import { jobberService } from "./services/jobber";
 import { emailService, sendEmail } from "./services/sendgrid";
 import { smsService } from "./services/twilio";
 import { stripeService } from "./services/stripe";
@@ -11,6 +12,9 @@ import { sseService, eventBus } from "./services/sse";
 import { cronService } from "./services/cron";
 import { documentStorageService } from "./services/documentStorage";
 import { ocrService } from "./services/ocr";
+import { coiParser } from "./services/coiParser";
+import { coiRules } from "./services/coiRules";
+import { generateComplianceSnapshot } from "./services/snapshotPdf";
 import { logger } from "./services/logger";
 import multer from 'multer';
 import { z } from 'zod';
@@ -164,11 +168,124 @@ export async function registerRoutes(app: Express): Promise<Server> {
         }
       }, 1000);
 
-      // Redirect to success page
+          // Redirect to success page
       res.redirect(`https://${process.env.REPLIT_DOMAINS?.split(',')[0]}/onboarding?qbo=success`);
     } catch (error) {
       console.error("Error in QBO callback:", error);
       res.status(500).json({ message: "Failed to connect QuickBooks" });
+    }
+  });
+
+  // Jobber OAuth routes
+  app.get('/api/jobber/auth-url', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const account = await storage.getAccountByUserId(userId);
+      
+      if (!account) {
+        return res.status(404).json({ message: 'Account not found' });
+      }
+
+      const authUrl = jobberService.getAuthUrl(account.id);
+      res.json({ authUrl });
+    } catch (error) {
+      logger.error("Error getting Jobber auth URL", { error: error instanceof Error ? error.message : String(error) });
+      res.status(500).json({ message: "Failed to get auth URL" });
+    }
+  });
+
+  app.get('/api/jobber/callback', async (req, res) => {
+    try {
+      const { code, state: accountId } = req.query;
+      
+      if (!code || !accountId) {
+        return res.status(400).json({ message: 'Missing code or account ID' });
+      }
+
+      const tokens = await jobberService.exchangeCodeForTokens(code as string);
+      
+      // Store tokens in database
+      await storage.updateAccount(accountId as string, {
+        jobberAccountId: tokens.accountId,
+        jobberAccessToken: tokens.accessToken,
+        jobberRefreshToken: tokens.refreshToken,
+        jobberTokenExpiry: new Date(Date.now() + tokens.expiresIn * 1000),
+      } as any);
+
+      // Set default COI rules on first connect
+      const account = await storage.getAccount(accountId as string);
+      if (!account?.coiRules) {
+        await storage.updateAccount(accountId as string, {
+          coiRules: {
+            minGL: 2000000, // $2M minimum General Liability
+            minAuto: 1000000, // $1M minimum Auto Liability
+            requireAdditionalInsured: true,
+            requireWaiver: false,
+            expiryWarningDays: [30, 14, 7],
+          },
+        } as any);
+      }
+
+      // Start initial sync in background
+      setTimeout(async () => {
+        try {
+          logger.info(`Starting initial Jobber client sync for account: ${accountId}`);
+          await jobberService.syncClients(accountId as string);
+          
+          // Get vendor count for event
+          const vendors = await storage.getVendorsByAccountId(accountId as string);
+          eventBus.emit('jobber.sync', { accountId, vendorCount: vendors.length });
+          
+          logger.info('Initial Jobber sync completed successfully');
+        } catch (error) {
+          logger.error('Error in initial Jobber sync', { error: error instanceof Error ? error.message : String(error) });
+        }
+      }, 1000);
+
+      // Redirect to success page
+      res.redirect(`https://${process.env.REPLIT_DOMAINS?.split(',')[0]}/onboarding?jobber=success`);
+    } catch (error) {
+      logger.error("Error in Jobber callback", { error: error instanceof Error ? error.message : String(error) });
+      res.status(500).json({ message: "Failed to connect Jobber" });
+    }
+  });
+
+  // Manual Jobber sync endpoint
+  app.post('/api/jobber/sync', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const account = await storage.getAccountByUserId(userId);
+      
+      if (!account) {
+        return res.status(404).json({ message: 'Account not found' });
+      }
+
+      if (!account.jobberAccessToken || !account.jobberAccountId) {
+        return res.status(400).json({ message: 'Jobber not connected' });
+      }
+
+      logger.info(`Manual sync requested for account: ${account.companyName}`);
+      
+      // Run sync
+      await jobberService.syncClients(account.id);
+      
+      // Get updated count
+      const vendors = await storage.getVendorsByAccountId(account.id);
+      
+      // Emit SSE event
+      eventBus.emit('jobber.sync', { 
+        accountId: account.id, 
+        vendorCount: vendors.length 
+      });
+      
+      res.json({ 
+        message: 'Sync completed successfully',
+        vendorCount: vendors.length,
+        details: 'Jobber clients synced successfully'
+      });
+    } catch (error) {
+      logger.error("Error in manual Jobber sync", { error: error instanceof Error ? error.message : String(error) });
+      res.status(500).json({ message: "Failed to sync Jobber data" });
     }
   });
 
@@ -296,6 +413,88 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error("Error fetching vendor documents:", error);
       res.status(500).json({ message: "Failed to fetch vendor documents" });
+    }
+  });
+
+  // Generate compliance snapshot PDF
+  app.get('/api/vendors/:id/snapshot.pdf', isAuthenticated, async (req: any, res) => {
+    try {
+      const { id } = req.params;
+      const userId = req.user.claims.sub;
+      const account = await storage.getAccountByUserId(userId);
+      
+      if (!account) {
+        return res.status(404).json({ message: 'Account not found' });
+      }
+
+      // Verify vendor belongs to the user's account
+      const vendor = await storage.getVendor(id);
+      if (!vendor || vendor.accountId !== account.id) {
+        return res.status(404).json({ message: 'Vendor not found' });
+      }
+
+      // Get COI document
+      const documents = await storage.getDocumentsByVendorId(id);
+      const coiDoc = documents.find((doc: any) => doc.type === 'COI');
+
+      const formatDate = (date: Date | string | null) => {
+        if (!date) return 'N/A';
+        return new Date(date).toLocaleDateString('en-US', { 
+          year: 'numeric', 
+          month: 'long', 
+          day: 'numeric',
+          timeZone: 'UTC'
+        });
+      };
+
+      const formatCurrency = (amount: number | null | undefined) => {
+        if (!amount) return 'N/A';
+        return `$${amount.toLocaleString()}`;
+      };
+
+      const formatBoolean = (value: boolean | null | undefined) => {
+        if (value === true) return 'Yes';
+        if (value === false) return 'No';
+        return 'N/A';
+      };
+
+      // Determine violations - inject missing COI violation if no document exists
+      let violations: string[] = [];
+      if (!coiDoc) {
+        violations = ['Certificate of Insurance is missing - vendor is non-compliant'];
+      } else if (vendor.coiStatus === 'EXPIRED') {
+        violations = ['Certificate of Insurance has expired'];
+      } else {
+        violations = coiDoc.violations || [];
+      }
+
+      // Prepare snapshot data
+      const snapshotData = {
+        vendorName: vendor.name,
+        effective: coiDoc?.parsedData?.effectiveDate 
+          ? formatDate(coiDoc.parsedData.effectiveDate)
+          : 'N/A',
+        expires: vendor.coiExpiry ? formatDate(vendor.coiExpiry) : 'N/A',
+        glLimit: coiDoc?.parsedData?.glCoverage 
+          ? formatCurrency(coiDoc.parsedData.glCoverage)
+          : 'N/A',
+        autoCoverage: coiDoc?.parsedData?.autoCoverage
+          ? formatCurrency(coiDoc.parsedData.autoCoverage)
+          : 'N/A',
+        additionalInsured: formatBoolean(coiDoc?.parsedData?.additionalInsured),
+        waiver: formatBoolean(coiDoc?.parsedData?.waiverOfSubrogation),
+        violations: violations,
+        complianceStatus: vendor.coiStatus || 'UNKNOWN',
+      };
+
+      const pdfBuffer = await generateComplianceSnapshot(snapshotData);
+
+      res.setHeader('Content-Type', 'application/pdf');
+      res.setHeader('Content-Disposition', `attachment; filename="compliance-snapshot-${vendor.name.replace(/[^a-z0-9]/gi, '-')}-${new Date().toISOString().split('T')[0]}.pdf"`);
+      res.send(pdfBuffer);
+    } catch (error) {
+      console.error("Error generating compliance snapshot:", error);
+      res.status(500).json({ message: "Failed to generate compliance snapshot" });
     }
   });
 
@@ -614,6 +813,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
         mimeType: file.mimetype,
       });
 
+      // Variables for COI compliance tracking
+      let complianceStatus: string | undefined;
+      let violations: any[] | null = null;
+
       // Update vendor status and extract expiry date for COI
       if (type === 'W9') {
         await storage.updateVendor(vendorId, { w9Status: 'RECEIVED' });
@@ -631,18 +834,45 @@ export async function registerRoutes(app: Express): Promise<Server> {
         // Extract actual expiry date from COI document using OCR
         const { expiryDate: extractedDate, extractedText } = await ocrService.extractCOIInformation(file.buffer, file.mimetype);
         
-        // Use extracted date or fall back to 1 year from now
-        const expiryDate = extractedDate || (() => {
+        // Parse COI data (coverage limits, endorsements, dates)
+        let parsedData = null;
+        complianceStatus = 'UNKNOWN';
+        
+        if (extractedText) {
+          try {
+            parsedData = coiParser.parseCOI(extractedText);
+            logger.info(`COI parsed for ${vendor.name}`, { parsedData });
+            
+            // Get account COI rules to evaluate compliance
+            const account = await storage.getAccount(vendor.accountId);
+            if (account && account.coiRules) {
+              const rules = account.coiRules as any;
+              violations = coiRules.evaluateCompliance(parsedData, rules);
+              complianceStatus = coiRules.getComplianceStatus(violations);
+              logger.info(`COI compliance evaluated for ${vendor.name}`, { 
+                complianceStatus, 
+                violationCount: violations.length 
+              });
+            }
+          } catch (error) {
+            logger.error(`Error parsing/evaluating COI for ${vendor.name}`, error);
+          }
+        }
+        
+        // Use parsed expiry date, fallback to OCR date, or default to 1 year
+        const expiryDate = parsedData?.expiryDate || extractedDate || (() => {
           const fallbackDate = new Date();
           fallbackDate.setFullYear(fallbackDate.getFullYear() + 1);
           console.warn(`No expiry date found in COI for ${vendor.name}, using 1-year fallback`);
           return fallbackDate;
         })();
         
-        // Update document record with extracted text
+        // Update document record with extracted text, parsed data, and violations
         await storage.updateDocument(document.id, { 
           extractedText: extractedText || null,
-          expiresAt: expiryDate 
+          parsedData: parsedData || null,
+          expiresAt: expiryDate,
+          violations: violations || null,
         });
         
         await storage.updateVendor(vendorId, { 
@@ -661,7 +891,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
         }
 
         // Log the result for monitoring
-        if (extractedDate) {
+        if (parsedData?.expiryDate) {
+          console.log(`COI expiry date parsed for ${vendor.name}: ${expiryDate.toISOString()} - Compliance: ${complianceStatus}`);
+        } else if (extractedDate) {
           console.log(`COI expiry date extracted for ${vendor.name}: ${expiryDate.toISOString()}`);
         } else {
           console.log(`COI uploaded for ${vendor.name} - using fallback expiry date: ${expiryDate.toISOString()}`);
@@ -677,12 +909,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
         description: `${type} document received`,
       });
 
-      // Send SSE event
-      eventBus.emit('doc.received', {
+      // Send SSE event with compliance status for COI
+      const sseData: any = {
         accountId: vendor.accountId,
         vendorName: vendor.name,
         docType: type,
-      });
+      };
+      
+      if (type === 'COI' && complianceStatus) {
+        sseData.complianceStatus = complianceStatus;
+        sseData.violationCount = violations?.length || 0;
+      }
+      
+      eventBus.emit('doc.received', sseData);
 
       res.json({ success: true, document });
     } catch (error) {
@@ -720,6 +959,76 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Document update route (for correcting COI parsed data)
+  app.patch('/api/documents/:id', async (req, res) => {
+    try {
+      const { id } = req.params;
+      const { parsedData } = req.body;
+
+      // Get document to verify it exists
+      const document = await storage.getDocument(id);
+      if (!document) {
+        return res.status(404).json({ message: 'Document not found' });
+      }
+
+      // Re-evaluate compliance and update all related fields for COI
+      if (document.type === 'COI' && parsedData) {
+        const vendor = await storage.getVendor(document.vendorId);
+        if (vendor) {
+          // Parse expiry date from corrected data
+          let expiryDate = new Date();
+          if (parsedData.expiryDate) {
+            expiryDate = new Date(parsedData.expiryDate);
+          } else {
+            // Fallback to 1 year from now if no expiry date provided
+            expiryDate.setFullYear(expiryDate.getFullYear() + 1);
+          }
+
+          // Re-evaluate compliance with corrected data
+          let violations: any[] | null = null;
+          let complianceStatus = 'COMPLIANT';
+          
+          const account = await storage.getAccount(vendor.accountId);
+          if (account && account.coiRules) {
+            const rules = account.coiRules as any;
+            violations = coiRules.evaluateCompliance(parsedData, rules);
+            complianceStatus = coiRules.getComplianceStatus(violations);
+          }
+
+          // Update document with corrected parsed data, expiry date, and violations
+          await storage.updateDocument(id, { 
+            parsedData,
+            expiresAt: expiryDate,
+            violations: violations || null,
+          });
+
+          // Update vendor with corrected expiry date and compliance status
+          await storage.updateVendor(document.vendorId, {
+            coiStatus: 'RECEIVED',
+            coiExpiry: expiryDate,
+          });
+
+          logger.info(`COI corrected and re-evaluated for ${vendor.name}`, { 
+            complianceStatus, 
+            violationCount: violations?.length || 0,
+            expiryDate: expiryDate.toISOString(),
+          });
+
+          res.json({ success: true, violations, complianceStatus });
+        } else {
+          res.json({ success: true });
+        }
+      } else {
+        // For non-COI documents, just update parsed data
+        await storage.updateDocument(id, { parsedData });
+        res.json({ success: true });
+      }
+    } catch (error) {
+      console.error("Error updating document:", error);
+      res.status(500).json({ message: "Failed to update document" });
+    }
+  });
+
   // Dashboard stats route
   app.get('/api/dashboard/stats', isAuthenticated, async (req: any, res) => {
     try {
@@ -735,6 +1044,35 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error("Error fetching dashboard stats:", error);
       res.status(500).json({ message: "Failed to fetch dashboard stats" });
+    }
+  });
+
+  // Compliance-focused dashboard stats route
+  app.get('/api/dashboard/compliance-stats', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const account = await storage.getAccountByUserId(userId);
+      
+      if (!account) {
+        return res.status(404).json({ message: 'Account not found' });
+      }
+
+      const allStats = await storage.getDashboardStats(account.id);
+      
+      // Return only compliance-related metrics
+      const complianceStats = {
+        totalVendors: allStats.totalVendors,
+        compliantVendors: allStats.compliantVendors,
+        compliancePercentage: allStats.compliancePercentage,
+        missingCOIs: allStats.missingCOIs,
+        expiringCOIs: allStats.expiringCOIs,
+        jobsAtRisk: allStats.jobsAtRisk,
+      };
+      
+      res.json(complianceStats);
+    } catch (error) {
+      console.error("Error fetching compliance stats:", error);
+      res.status(500).json({ message: "Failed to fetch compliance stats" });
     }
   });
 
